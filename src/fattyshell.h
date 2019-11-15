@@ -19,7 +19,7 @@ typedef enum op_t { EXIT,
 
 typedef struct fat_t 
 {
-    
+    uint8_t BS_jmpBoot[3];
 
 
 } fat;
@@ -31,7 +31,6 @@ void f_exit();
 void f_info();
 int f_size();
 int f_open();
-
 
 void printMenu()
 {
