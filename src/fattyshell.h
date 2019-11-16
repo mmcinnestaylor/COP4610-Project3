@@ -194,7 +194,7 @@ int parseCommand(cmd* instr, boot* f_boot)
             run = 0;
             break;
         case INFO:
-            f_info(data);
+            f_info(f_boot);
             break;
         case CREATE:
         case CLOSE: 
