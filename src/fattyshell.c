@@ -1,70 +1,101 @@
-#include <stdlib.h>
-#include <stdio.h>
+/*
+ *  FAT32 Shell Utility - source
+ *  Authors: Keaun Moughari, Hayden Rogers, Marlan McInnes-Taylor
+ *  Date:   November 14th, 2019
+ * 
+ */
+
 #include "fattyshell.h"
 
 int main(int argc, char** argv)
-{
+{   
+    // check for valid argc
     if (argc != 2)
     {
         printf("Correct usage: %s <path>\n", argv[0]);
         return -1;
     }
 
+    // check for valid file ext (.img)
     if (strstr(argv[1], ".img") == NULL)
     {
         printf("Incompatible filetype. Expecting type of .img\n");
         return -1;
     }
     
-    int run = 1;
-    char op;
-    char *cmd = NULL;
-    char *tmp = NULL;
+    // declare structs for fat regions
+    boot f_boot;
+    fat f_fat;
+    data f_data;
+
+    // open filename passed in in read/binary mode, init f_boot info
+    FILE *fp = NULL;
+    fp = fopen(argv[1], "rb");
+    if (fp) 
+    {  
+        initFAT(fp, &f_boot);
+    }
+    else
+    {
+        printf("Error opening %s\n", argv[1]);
+        return -1;
+    }
+
+    // beginning of shell
     printf("Fatty Shell\nEnter \"help\" or \"h\" to view available commands\n");
+    char *tok = NULL;
+    char *tmp = NULL;
     
+    // cmd struct to hold each token of instruction
+    cmd instr;
+    instr.tokens = NULL;
+    instr.size = 0;
+
     do
     {
         printf("\] ");
-        scanf("%ms", cmd);
-        tmp = (char*) malloc((strlen(cmd) + 1) * sizeof(char));
-        strcpy(tmp, cmd);
-
-        char *tok = NULL;
-        tok = strtok(tmp, " \n");
-        while (tok != NULL)
+        
+        do
         {
-            switch (getChoice(tok))
+            scanf("%ms", tok);
+            tmp = (char*) malloc((strlen(tok) + 1) * sizeof(char));
+
+            int start = 0;
+            int i;
+            for (i = 0; i < strlen(tok); i++)
             {
-                case EXIT:
-                    f_exit();
-                    run = 0;
-                    break;
-                case INFO:
-                case CREATE: 
-                case CLOSE: 
-                case RM:
-                case OPEN:
-                case WRITE: 
-                case READ:
-                case SIZE:
-                case LS:
-                case CD: 
-                case MKDIR: 
-                case RMDIR:
-                case ERROR:
-                    printf("Invalid menu option. Enter \"help\" or \"h\" to view available commands\n");
-                    break;
-                case -1:
-                    printf("tok was null\n");
-                    break;
+                if (tok[i] == ' ')
+                {
+                    if (i - start > 0)
+                    {
+                        memcpy(tmp, tok + start, i - start);
+                        tmp[i-start] = '\0';
+
+                        addToken(&instr, tmp);
+                    }
+    
+                    start = i + 1;
+                }
             }
-        }
 
-        free(cmd);
-        free(tmp);
-        cmd = NULL;
-        tmp = NULL;
+            if (start < strlen(tok))
+            {
+                memcpy(tmp, tok + start, strlen(tok) - start);
+                tmp[i - start] = '\0';
+                
+                addToken(&instr, tmp);
+            }
+            
+            addNull(&instr);
+            parseCommand(&instr, &f_boot);
+            clearInstruction(&instr);
+            
+            free(tok);
+            free(tmp);
+            tok = NULL;
+            tmp = NULL;
 
+        } while (getchar() != '\n');
     } while (run);
 
     return 0;
