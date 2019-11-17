@@ -39,7 +39,7 @@ typedef enum op_t
     MKDIR, 
     RMDIR,
     ERROR
-    
+
 } op;
 
 typedef struct cmd_t
