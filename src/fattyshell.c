@@ -33,7 +33,8 @@ int main(int argc, char** argv)
     fp = fopen(argv[1], "rb");
     if (fp) 
     {  
-        initFAT(fp, &f_boot);
+        initBoot(fp, &f_boot);
+        initFAT(&f_boot, &f_fat);
     }
     else
     {
@@ -50,10 +51,10 @@ int main(int argc, char** argv)
     cmd instr;
     instr.tokens = NULL;
     instr.size = 0;
-
+    
     do
     {
-        printf("\] ");
+        printf("\\] ");
         
         do
         {
@@ -88,7 +89,7 @@ int main(int argc, char** argv)
             
             addNull(&instr);
             parseCommand(&instr, &f_boot);
-            clearInstruction(&instr);
+            clearCommand(&instr);
             
             free(tok);
             free(tmp);
@@ -97,6 +98,6 @@ int main(int argc, char** argv)
 
         } while (getchar() != '\n');
     } while (run);
-
+    
     return 0;
 }

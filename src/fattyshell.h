@@ -21,6 +21,8 @@
 #define ATTR_DIRECTORY  0x10
 #define ATTR_ARCHIVE    0x20
 
+#define SCNx8 "hhx"
+
 static int run = 1;
 
 typedef enum op_t 
@@ -79,7 +81,7 @@ typedef struct boot_t
     uint8_t BPB_FSInfo[2];
     uint8_t BPB_BkBootSec[2];
     uint8_t BPB_Reserved[12];
-    
+
 } __attribute__ ((packed)) boot;
 
 typedef struct fat_t 
@@ -111,11 +113,13 @@ typedef struct data_t
 
 
 // init functions
-void initFAT(FILE*, boot*);
+void initBoot(FILE*, boot*);
+void initFAT(boot*, fat*);
+void initData();
 
 // fat32 functions
 void f_exit();
-void f_info(fat* data);
+void f_info(boot* data);
 int f_size();
 int f_open();
 int f_read();
@@ -126,7 +130,7 @@ int f_close();
 int getChoice(const char*);
 void dec2hex(uint8_t*);
 void hex2dec(uint8_t*);
-void cnvtEndian(uint8_t*);
+void cnvtEndian(uint8_t*, int size);
 void printMenu();
 
 // shell command functions
@@ -138,15 +142,57 @@ void printTokens(cmd*);
 
 
 
-void initFAT(FILE* fp, boot* f_boot)
+void initBoot(FILE* fp, boot* f_boot)
 {
     if (fp)
     {
+        int size = 0;
         int pos = 0;
+        
         pos = fread(f_boot->BS_jmpBoot, sizeof(uint8_t), 3, fp);
+        size = sizeof(f_boot->BS_jmpBoot) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BS_jmpBoot, size);
 
-        cnvtEndian(f_boot->BS_jmpBoot);
-        hex2dec(f_boot->BS_jmpBoot);
+        pos = fread(f_boot->BS_OEMName, sizeof(uint8_t), 8, fp);
+        size = sizeof(f_boot->BS_OEMName) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BS_OEMName, size);
+
+        pos = fread(f_boot->BPB_BytsPerSec, sizeof(uint8_t), 2, fp);
+        size = sizeof(f_boot->BPB_BytsPerSec) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_BytsPerSec, size);
+
+        pos = fread(f_boot->BPB_SecPerClus, sizeof(uint8_t), 1, fp);
+        size = sizeof(f_boot->BPB_SecPerClus) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_SecPerClus, size);
+
+        pos = fread(f_boot->BPB_RsvdSecCnt, sizeof(uint8_t), 2, fp);
+        size = sizeof(f_boot->BPB_RsvdSecCnt) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_RsvdSecCnt, size);
+
+        pos = fread(f_boot->BPB_NumFATs, sizeof(uint8_t), 1, fp);
+        size = sizeof(f_boot->BPB_NumFATs) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_NumFATs, size);
+
+        pos = fread(f_boot->BPB_RootEntCnt, sizeof(uint8_t), 2, fp);
+        size = sizeof(f_boot->BPB_RootEntCnt) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_RootEntCnt, size);
+
+        pos = fread(f_boot->BPB_TotSec16, sizeof(uint8_t), 2, fp);
+        size = sizeof(f_boot->BPB_TotSec16) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_TotSec16, size);
+
+        pos = fread(f_boot->BPB_Media, sizeof(uint8_t), 1, fp);
+        size = sizeof(f_boot->BPB_Media) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_Media, size);
+
+        pos = fread(f_boot->BPB_FATSz16, sizeof(uint8_t), 2, fp);
+        size = sizeof(f_boot->BPB_FATSz16) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_FATSz16, size);
+
+        pos = fread(f_boot->BPB_SecPerTrk, sizeof(uint8_t), 2, fp);
+        size = sizeof(f_boot->BPB_SecPerTrk) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_SecPerTrk, size);
+
     }
 
 }
@@ -198,17 +244,16 @@ void hex2dec(uint8_t* hex)
 
 }
 
-void cnvtEndian(uint8_t* x)
+void cnvtEndian(uint8_t *x, int size)
 {
-    int size = sizeof(x) / sizeof(uint8_t);
     uint8_t tmp[size];
-    
     int i, j;
     for (i = 0, j = size - 1; i < size; i++, j--)
         tmp[i] = x[j];
     for (i = 0; i < size; i++)
         x[i] = tmp[i];
 }
+
 
 int parseCommand(cmd* instr, boot* f_boot)
 {
@@ -249,6 +294,7 @@ int parseCommand(cmd* instr, boot* f_boot)
 
     }
 }
+
 
 void addToken(cmd* instr, char* tok)
 {
