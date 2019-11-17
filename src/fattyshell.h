@@ -126,7 +126,8 @@ int f_close();
 int getChoice(const char*);
 void dec2hex(uint8_t*);
 void hex2dec(uint8_t*);
-void cnvtEndian(uint8_t*);
+void ascii2dec(uint8_t *);
+void cnvtEndian(uint8_t *);
 void printMenu();
 
 // shell command functions
@@ -196,6 +197,19 @@ void hex2dec(uint8_t* hex)
 {
     int size = sizeof(hex) / sizeof(uint8_t);
 
+}
+
+//converts ascii values to actual decimal values
+void ascii2dec(uint8_t * arr)
+{
+    int i, size = sizeof(arr) / sizeof(uint8_t);
+
+    for(i = 0; i < size; i++){
+        if(arr[i] >= 48 && arr[i] <= 57)
+            arr[i] -= 48;
+        else if(arr[i] >= 65 and arr[i] <= 70)
+            arr[i] -= 55;  
+    }
 }
 
 void cnvtEndian(uint8_t* x)
