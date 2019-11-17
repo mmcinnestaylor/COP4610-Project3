@@ -67,13 +67,6 @@ typedef struct boot_t
     uint8_t BPB_NumHeads[2];
     uint8_t BPB_HiddSec[4];
     uint8_t BPB_TotSec32[4];
-    uint8_t BS_DrvNum[1];
-    uint8_t BS_Reserved1[1];
-    uint8_t BS_BootSig[1];
-    uint8_t BS_VolID[1];
-    uint8_t BS_VolLab[11];
-    uint8_t BS_FilSysType[8];
-    uint8_t Signature_word[2];
     uint8_t BPB_FATSz32[4];
     uint8_t BPB_ExtFlags[2];
     uint8_t BPB_FSVer[2];
@@ -81,6 +74,13 @@ typedef struct boot_t
     uint8_t BPB_FSInfo[2];
     uint8_t BPB_BkBootSec[2];
     uint8_t BPB_Reserved[12];
+    uint8_t BS_DrvNum[1];
+    uint8_t BS_Reserved1[1];
+    uint8_t BS_BootSig[1];
+    uint8_t BS_VolID[1];
+    uint8_t BS_VolLab[11];
+    uint8_t BS_FilSysType[8];
+    uint8_t Signature_word[2];
 
 } __attribute__ ((packed)) boot;
 
@@ -150,50 +150,118 @@ void initBoot(FILE* fp, boot* f_boot)
         int size = 0;
         int pos = 0;
         
-        pos = fread(f_boot->BS_jmpBoot, sizeof(uint8_t), 3, fp);
+        pos = fread(f_boot->BS_jmpBoot, sizeof(uint8_t), 3, fp);    // 0 - 2
         size = sizeof(f_boot->BS_jmpBoot) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BS_jmpBoot, size);
 
-        pos = fread(f_boot->BS_OEMName, sizeof(uint8_t), 8, fp);
+        pos += fread(f_boot->BS_OEMName, sizeof(uint8_t), 8, fp);    // 3 - 10
         size = sizeof(f_boot->BS_OEMName) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BS_OEMName, size);
 
-        pos = fread(f_boot->BPB_BytsPerSec, sizeof(uint8_t), 2, fp);
+        pos += fread(f_boot->BPB_BytsPerSec, sizeof(uint8_t), 2, fp);    // 11 - 12
         size = sizeof(f_boot->BPB_BytsPerSec) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_BytsPerSec, size);
 
-        pos = fread(f_boot->BPB_SecPerClus, sizeof(uint8_t), 1, fp);
+        pos += fread(f_boot->BPB_SecPerClus, sizeof(uint8_t), 1, fp);    // 13
         size = sizeof(f_boot->BPB_SecPerClus) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_SecPerClus, size);
 
-        pos = fread(f_boot->BPB_RsvdSecCnt, sizeof(uint8_t), 2, fp);
+        pos += fread(f_boot->BPB_RsvdSecCnt, sizeof(uint8_t), 2, fp);    // 14 - 15
         size = sizeof(f_boot->BPB_RsvdSecCnt) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_RsvdSecCnt, size);
 
-        pos = fread(f_boot->BPB_NumFATs, sizeof(uint8_t), 1, fp);
+        pos += fread(f_boot->BPB_NumFATs, sizeof(uint8_t), 1, fp);   // 16 
         size = sizeof(f_boot->BPB_NumFATs) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_NumFATs, size);
 
-        pos = fread(f_boot->BPB_RootEntCnt, sizeof(uint8_t), 2, fp);
+        pos += fread(f_boot->BPB_RootEntCnt, sizeof(uint8_t), 2, fp);    // 17 - 18
         size = sizeof(f_boot->BPB_RootEntCnt) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_RootEntCnt, size);
 
-        pos = fread(f_boot->BPB_TotSec16, sizeof(uint8_t), 2, fp);
+        pos += fread(f_boot->BPB_TotSec16, sizeof(uint8_t), 2, fp);  // 19 - 20
         size = sizeof(f_boot->BPB_TotSec16) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_TotSec16, size);
 
-        pos = fread(f_boot->BPB_Media, sizeof(uint8_t), 1, fp);
+        pos += fread(f_boot->BPB_Media, sizeof(uint8_t), 1, fp); // 21
         size = sizeof(f_boot->BPB_Media) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_Media, size);
 
-        pos = fread(f_boot->BPB_FATSz16, sizeof(uint8_t), 2, fp);
+        pos += fread(f_boot->BPB_FATSz16, sizeof(uint8_t), 2, fp);   // 22 - 23
         size = sizeof(f_boot->BPB_FATSz16) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_FATSz16, size);
 
-        pos = fread(f_boot->BPB_SecPerTrk, sizeof(uint8_t), 2, fp);
+        pos += fread(f_boot->BPB_SecPerTrk, sizeof(uint8_t), 2, fp); // 24 - 25
         size = sizeof(f_boot->BPB_SecPerTrk) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_SecPerTrk, size);
+        
+        pos += fread(f_boot->BPB_NumHeads, sizeof(uint8_t), 2, fp);  // 26 - 27
+        size = sizeof(f_boot->BPB_NumHeads) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_NumHeads, size);
 
+        pos += fread(f_boot->BPB_HiddSec, sizeof(uint8_t), 4, fp);   // 28 - 31
+        size = sizeof(f_boot->BPB_HiddSec) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_HiddSec, size);
+
+        pos += fread(f_boot->BPB_TotSec32, sizeof(uint8_t), 4, fp);  // 32 - 35
+        size = sizeof(f_boot->BPB_TotSec32) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_TotSec32, size);
+
+        pos += fread(f_boot->BPB_FATSz32, sizeof(uint8_t), 4, fp);   // 36 - 39
+        size = sizeof(f_boot->BPB_FATSz32) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_FATSz32, size);
+
+        pos += fread(f_boot->BPB_ExtFlags, sizeof(uint8_t), 2, fp);  // 40 - 41 
+        size = sizeof(f_boot->BPB_ExtFlags) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_ExtFlags, size);
+
+        pos += fread(f_boot->BPB_FSVer, sizeof(uint8_t), 2, fp); // 42 - 43
+        size = sizeof(f_boot->BPB_FSVer) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_FSVer, size);
+
+        pos += fread(f_boot->BPB_RootClus, sizeof(uint8_t), 4, fp);  // 44 - 47
+        size = sizeof(f_boot->BPB_RootClus) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_RootClus, size);
+
+        pos += fread(f_boot->BPB_FSInfo, sizeof(uint8_t), 2, fp);    // 48 - 49
+        size = sizeof(f_boot->BPB_FSInfo) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_FSInfo, size);
+
+        pos += fread(f_boot->BPB_BkBootSec, sizeof(uint8_t), 2, fp); // 50 - 51
+        size = sizeof(f_boot->BPB_BkBootSec) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_BkBootSec, size);
+
+        pos += fread(f_boot->BPB_Reserved, sizeof(uint8_t), 12, fp); // 52 - 63
+        size = sizeof(f_boot->BPB_Reserved) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BPB_Reserved, size);
+
+        pos += fread(f_boot->BS_DrvNum, sizeof(uint8_t), 1, fp); // 64
+        size = sizeof(f_boot->BS_DrvNum) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BS_DrvNum, size);
+
+        pos += fread(f_boot->BS_Reserved1, sizeof(uint8_t), 1, fp);  // 65
+        size = sizeof(f_boot->BS_Reserved1) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BS_Reserved1, size);
+
+        pos += fread(f_boot->BS_BootSig, sizeof(uint8_t), 1, fp);    // 66
+        size = sizeof(f_boot->BS_BootSig) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BS_BootSig, size);
+
+        pos += fread(f_boot->BS_VolID, sizeof(uint8_t), 4, fp);  // 67 - 70
+        size = sizeof(f_boot->BS_VolID) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BS_VolID, size);
+
+        pos += fread(f_boot->BS_VolLab, sizeof(uint8_t), 11, fp);    // 71 - 81
+        size = sizeof(f_boot->BS_VolLab) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BS_VolLab, size);
+
+        pos += fread(f_boot->BS_FilSysType, sizeof(uint8_t), 8, fp); // 82 - 89
+        size = sizeof(f_boot->BS_FilSysType) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->BS_FilSysType, size);
+
+        fseek(fp, 510 - pos, pos);
+        fread(f_boot->Signature_word, sizeof(uint8_t), 2, fp);    // 90 - 92
+        size = sizeof(f_boot->Signature_word) / sizeof(uint8_t);        
+        cnvtEndian(f_boot->Signature_word, size);
     }
 
 }
