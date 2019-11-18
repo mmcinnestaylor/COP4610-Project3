@@ -77,7 +77,7 @@ typedef struct boot_t
     uint8_t BS_DrvNum[1];
     uint8_t BS_Reserved1[1];
     uint8_t BS_BootSig[1];
-    uint8_t BS_VolID[1];
+    uint8_t BS_VolID[4];
     uint8_t BS_VolLab[11];
     uint8_t BS_FilSysType[8];
     uint8_t Signature_word[2];
@@ -119,7 +119,7 @@ void initData();
 
 // fat32 functions
 void f_exit();
-void f_info(boot* data);
+void f_info(boot*);
 int f_size();
 int f_open();
 int f_read();
@@ -130,7 +130,8 @@ int f_close();
 int getChoice(const char*);
 void dec2hex(uint8_t*);
 void hex2dec(uint8_t*);
-void cnvtEndian(uint8_t*, int size);
+uint32_t arr2val(uint8_t *, int);
+void cnvtEndian(uint8_t*, int);
 void ascii2dec(uint8_t *);
 void printMenu();
 
@@ -148,7 +149,7 @@ void initBoot(FILE* fp, boot* f_boot)
     if (fp)
     {
         int size = 0;
-        int pos = 0;
+        size_t pos = 0;
         
         pos = fread(f_boot->BS_jmpBoot, sizeof(uint8_t), 3, fp);    // 0 - 2
         size = sizeof(f_boot->BS_jmpBoot) / sizeof(uint8_t);        
@@ -193,7 +194,7 @@ void initBoot(FILE* fp, boot* f_boot)
         pos += fread(f_boot->BPB_SecPerTrk, sizeof(uint8_t), 2, fp); // 24 - 25
         size = sizeof(f_boot->BPB_SecPerTrk) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_SecPerTrk, size);
-        
+
         pos += fread(f_boot->BPB_NumHeads, sizeof(uint8_t), 2, fp);  // 26 - 27
         size = sizeof(f_boot->BPB_NumHeads) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BPB_NumHeads, size);
@@ -258,10 +259,46 @@ void initBoot(FILE* fp, boot* f_boot)
         size = sizeof(f_boot->BS_FilSysType) / sizeof(uint8_t);        
         cnvtEndian(f_boot->BS_FilSysType, size);
 
-        fseek(fp, 510 - pos, pos);
-        fread(f_boot->Signature_word, sizeof(uint8_t), 2, fp);    // 90 - 92
+        fseek(fp, 510 - pos, SEEK_CUR);
+        fread(f_boot->Signature_word, sizeof(uint8_t), 2, fp);    // 510 - 511
         size = sizeof(f_boot->Signature_word) / sizeof(uint8_t);        
         cnvtEndian(f_boot->Signature_word, size);
+        
+        /*
+        int i;
+        printf("BS_jmpBoot: 0x%08x\n", arr2val(f_boot->BS_jmpBoot, 3));
+        for (i = 0; i < 8; i++)
+            printf("BS_OEMName: 0x%02x\n", f_boot->BS_OEMName[i]);
+        printf("BytsPerSec: 0x%08x\n", arr2val(f_boot->BPB_BytsPerSec, 2));
+        printf("SecPerClus: 0x%08x\n", arr2val(f_boot->BPB_SecPerClus, 1));
+        printf("RsvdSecCnt: 0x%08x\n", arr2val(f_boot->BPB_RsvdSecCnt, 2));
+        printf("NumFATs: 0x%08x\n", arr2val(f_boot->BPB_NumFATs, 1));
+        printf("RootEntCnt: 0x%08x\n", arr2val(f_boot->BPB_RootEntCnt, 2));
+        printf("TotSec16: 0x%08x\n", arr2val(f_boot->BPB_TotSec16, 2));
+        printf("Media: 0x%08x\n", arr2val(f_boot->BPB_Media, 1));
+        printf("FATSz16: 0x%08x\n", arr2val(f_boot->BPB_FATSz16, 2));
+        printf("SecPerTrk: 0x%08x\n", arr2val(f_boot->BPB_SecPerTrk, 2));
+        printf("NumHeads: 0x%08x\n", arr2val(f_boot->BPB_NumHeads, 2));
+        printf("HiddSec: 0x%08x\n", arr2val(f_boot->BPB_HiddSec, 4));
+        printf("TotSec32: 0x%08x\n", arr2val(f_boot->BPB_TotSec32, 4));
+        printf("FATSz32: 0x%08x\n", arr2val(f_boot->BPB_FATSz32, 4));
+        printf("ExtFlags: 0x%08x\n", arr2val(f_boot->BPB_ExtFlags, 2));
+        printf("FSVer: 0x%08x\n", arr2val(f_boot->BPB_FSVer, 2));
+        printf("RootClus: 0x%08x\n", arr2val(f_boot->BPB_RootClus, 4));
+        printf("FSInfo: 0x%08x\n", arr2val(f_boot->BPB_FSInfo, 2));
+        printf("BkBootSec: 0x%08x\n", arr2val(f_boot->BPB_BkBootSec, 2));
+        for (i = 0; i < 12; i++)
+            printf("Reserved: 0x%02x\n", f_boot->BPB_Reserved[i]);
+        printf("DrvNum: 0x%08x\n", arr2val(f_boot->BS_DrvNum, 1));
+        printf("Reserved1: 0x%08x\n", arr2val(f_boot->BS_Reserved1, 1));
+        printf("BootSig: 0x%08x\n", arr2val(f_boot->BS_BootSig, 1));
+        printf("VolID: 0x%08x\n", arr2val(f_boot->BS_VolID, 4));
+        for (i = 0; i < 11; i++)
+            printf("VolLab: 0x%02x\n", f_boot->BS_VolLab[i]);
+        for (i = 0; i < 8; i++)
+            printf("FilSysType: 0x%02x\n", f_boot->BS_FilSysType[i]);
+        printf("Sig_word: 0x%08x\n", arr2val(f_boot->Signature_word, 2));
+        */
     }
 
 }
@@ -335,6 +372,30 @@ void cnvtEndian(uint8_t *x, int size)
         x[i] = tmp[i];
 }
 
+uint32_t arr2val(uint8_t *x, int size)
+{
+    uint32_t tmp = 0;
+    if (size == 1)
+        tmp = x[0];
+    else if (size == 2)
+        tmp = 0x0 | (x[0] << 8) | x[1];
+    else if (size == 3)
+        tmp = 0x0 | (x[0] << 16) | (x[1] << 8) | x[2];
+    else if (size == 4)
+        tmp = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+
+    return tmp;
+}
+
+void f_exit() 
+{
+    run = 0;
+}
+
+void f_info(boot* f_boot)
+{
+
+}
 
 int parseCommand(cmd* instr, boot* f_boot)
 {
@@ -344,7 +405,6 @@ int parseCommand(cmd* instr, boot* f_boot)
     {
         case EXIT:
             f_exit();
-            run = 0;
             break;
         case INFO:
             f_info(f_boot);

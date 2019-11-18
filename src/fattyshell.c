@@ -34,19 +34,18 @@ int main(int argc, char** argv)
     if (fp) 
     {  
         initBoot(fp, &f_boot);
-        initFAT(&f_boot, &f_fat);
     }
     else
     {
         printf("Error opening %s\n", argv[1]);
         return -1;
     }
-
+    fclose(fp);
     // beginning of shell
     printf("Fatty Shell\nEnter \"help\" or \"h\" to view available commands\n");
     char *tok = NULL;
     char *tmp = NULL;
-    
+
     // cmd struct to hold each token of instruction
     cmd instr;
     instr.tokens = NULL;
@@ -58,7 +57,9 @@ int main(int argc, char** argv)
         
         do
         {
-            scanf("%ms", tok);
+            if (!scanf("%ms", &tok))
+                continue;
+
             tmp = (char*) malloc((strlen(tok) + 1) * sizeof(char));
 
             int start = 0;
@@ -86,17 +87,20 @@ int main(int argc, char** argv)
                 
                 addToken(&instr, tmp);
             }
-            
-            addNull(&instr);
-            parseCommand(&instr, &f_boot);
-            clearCommand(&instr);
-            
+
             free(tok);
             free(tmp);
             tok = NULL;
             tmp = NULL;
 
-        } while (getchar() != '\n');
+        } while ('\n' != getchar());
+
+        addNull(&instr);
+        parseCommand(&instr, &f_boot);
+
+        //printTokens(&instr);
+        clearCommand(&instr);
+
     } while (run);
     
     return 0;
