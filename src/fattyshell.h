@@ -139,6 +139,8 @@ int isEndOfCluster(FILE*, const int);
 
 // shell command functions
 int parseCommand(cmd*, boot*, fat*, dir*);
+int nextCluster(fat*);
+// shell command functions
 void addToken(cmd*, char*);
 void addNull(cmd*);
 void clearCommand(cmd*);
@@ -342,7 +344,7 @@ int calc(fat* f_fat)
 
 int calcNext(fat* f_fat)
 {
-
+    return f_fat->curClus + f_fat->SecPerClus;
 }
 
 void printMenu()
