@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     // declare structs for fat regions
     boot f_boot;
     fat f_fat;
-    data f_data;
+    dir f_dir;
 
     // open filename passed in in read/binary mode, init f_boot info
     FILE *fp = NULL;
@@ -97,7 +97,7 @@ int main(int argc, char** argv)
         } while ('\n' != getchar());
 
         addNull(&instr);
-        parseCommand(&instr, &f_boot);
+        parseCommand(&instr, &f_boot, &f_fat, &f_dir);
 
         //printTokens(&instr);
         clearCommand(&instr);

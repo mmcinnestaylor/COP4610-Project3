@@ -5,8 +5,8 @@
  * 
  */
 
-#ifndef __FATTY_SHELL_H
-#define __FATTY_SHELL_H
+#ifndef _FATTY_SHELL_H
+#define _FATTY_SHELL_H
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -20,8 +20,6 @@
 #define ATTR_VOLUME_ID  0x08
 #define ATTR_DIRECTORY  0x10
 #define ATTR_ARCHIVE    0x20
-
-#define SCNx8 "hhx"
 
 static int run = 1;
 
@@ -87,36 +85,33 @@ typedef struct boot_t
 
 typedef struct fat_t 
 {
-    uint32_t RootDirSectors;
-    uint32_t FATSz;
-    uint32_t TotSec;
-    uint32_t DataSec;
     uint32_t CountofClusters;
+    uint32_t RootDirSectors;
+    uint32_t SecPerClus;
+    uint32_t RootClus;
+    uint32_t curClus;
+    uint32_t DataSec;
+    uint32_t TotSec;
+    uint32_t FATSz;
 
 } __attribute__ ((packed)) fat;
 
-typedef struct data_t
+typedef struct dir_t
 {
     char DIR_Name[11];
     uint8_t DIR_Attr[1];
     uint8_t DIR_NTRes[1];
-    uint8_t DIR_CrtTimeTenth[1];
-    uint8_t DIR_CrtTime[2];
-    uint8_t DIR_CrtDate[2];
-    uint8_t DIR_LstAccDate[2];
     uint8_t DIR_FstClusHI[2];
-    uint8_t DIR_WrtTime[2];
-    uint8_t DIR_WrtDate[2];
     uint8_t DIR_FstClusLO[2];
     uint8_t DIR_FileSize[4];
 
-} __attribute__ ((packed)) data;
+} __attribute__ ((packed)) dir;
 
 
 // init functions
 void initBoot(FILE*, boot*);
 void initFAT(boot*, fat*);
-void initData();
+void initDir(fat*, int);
 
 // fat32 functions
 void f_exit();
@@ -128,6 +123,8 @@ int f_close();
 
 
 // helper functions
+int calc(fat*);
+int calcNext(fat*);
 int getChoice(const char*);
 void dec2hex(uint8_t*);
 void hex2dec(uint8_t*);
@@ -137,7 +134,7 @@ void ascii2dec(uint8_t *);
 void printMenu();
 
 // shell command functions
-int parseCommand(cmd*, boot*);
+int parseCommand(cmd*, boot*, fat*, dir*);
 void addToken(cmd*, char*);
 void addNull(cmd*);
 void clearCommand(cmd*);
@@ -301,16 +298,14 @@ void initBoot(FILE* fp, boot* f_boot)
         printf("Sig_word: 0x%08x\n", arr2val(f_boot->Signature_word, 2));
         */
     }
-
 }
 
 void initFAT(boot* f_boot, fat* f_fat)
 {   
     uint32_t BPB_RootEntCnt = arr2val(f_boot->BPB_RootEntCnt, 2);
     uint32_t BPB_BytsPerSec = arr2val(f_boot->BPB_BytsPerSec, 2);
-    uint32_t BPB_ResvdSecCnt = arr2val(f_boot->BPB_RsvdSecCnt, 2);
+    uint32_t BPB_RsvdSecCnt = arr2val(f_boot->BPB_RsvdSecCnt, 2);
     uint32_t BPB_NumFATs = arr2val(f_boot->BPB_NumFATs, 1);
-    uint32_t BPB_SecPerClus = arr2val(f_boot->BPB_SecPerClus, 1);
     uint32_t FATSz, TotSec;
     
     if (arr2val(f_boot->BPB_FATSz32, 4) != 0)
@@ -323,9 +318,27 @@ void initFAT(boot* f_boot, fat* f_fat)
     else
         TotSec = arr2val(f_boot->BPB_TotSec16, 2);
 
+    f_fat->SecPerClus = arr2val(f_boot->BPB_SecPerClus, 1);
     f_fat->RootDirSectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec;
-    f_fat->DataSec = TotSec - (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors);
-    f_fat->CountofClusters = f_fat->DataSec / BPB_SecPerClus;
+    f_fat->DataSec = TotSec - (BPB_RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors);
+    f_fat->CountofClusters = f_fat->DataSec / f_fat->SecPerClus;
+    f_fat->curClus = f_fat->RootClus = arr2val(f_boot->BPB_RootClus, 4);
+}
+
+void initDir(fat* f_fat, int n)
+{
+    int firstSecOfClus = calc(f_fat);
+    int nextClus = calcNext(f_fat);
+}
+
+int calc(fat* f_fat)
+{
+    return f_fat->DataSec + ((f_fat->curClus - 2) * f_fat->SecPerClus);
+}
+
+int calcNext(fat* f_fat)
+{
+
 }
 
 void printMenu()
@@ -390,6 +403,7 @@ void ascii2dec(uint8_t * arr)
             arr[i] -= 55;  
     }
 }
+
 void cnvtEndian(uint8_t *x, int size)
 {
     uint8_t tmp[size];
@@ -457,7 +471,7 @@ void f_info(boot* f_boot)
     printf("Sig_word: 0x%08x\n", arr2val(f_boot->Signature_word, 2));
 }
 
-int parseCommand(cmd* instr, boot* f_boot)
+int parseCommand(cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
 {
     if (instr->size == 0)
         return -1;
@@ -498,7 +512,6 @@ int parseCommand(cmd* instr, boot* f_boot)
 
     }
 }
-
 
 void addToken(cmd* instr, char* tok)
 {
