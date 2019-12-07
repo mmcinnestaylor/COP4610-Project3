@@ -553,22 +553,71 @@ void clearCommand(cmd* instr)
 }
 
 
-
+/*
+*
+*
+*
+*
+*
+*
+*
+*   hayden testing
+*
+*
+*
+*
+* note: need to implement little
+*
+*
+*/
 int isLast(data_t* dir)
 {
+    // if (littleEndian(dir->DIR_Name, 1) == 0)
+    //     return 1;
+    // else
+    //     return 0;
     return 0;
+    // need to implement littleEndian with two parameters
 }
 
 
 int isEmpty(data_t* dir)
 {
-    return 0;
+    if( (int)dir->DIR_Name[0] == 229 )
+        return 1;
+    else
+        return 0;
 }
 
 
 int isLong(data_t* dir)
 {
-    return 0;
+    unsigned char dirAttrib = dir->DIR_Attr[0];
+    unsigned char mask = 15;
+
+    if((dirAttrib & mask) == 15)
+        return 1;
+    else 
+        return 0;
 }
+
+/*
+*
+*
+*
+*
+*
+*
+*
+* hayden testing
+*
+*
+*
+*
+*
+*
+*
+*/
+
 
 #endif
