@@ -138,9 +138,10 @@ void printMenu();
 int isLast(data_t*);
 int isEmpty(data_t*);
 int isLong(data_t*);
+int isEndOfCluster(FILE*, const int);
 
-// shell command functions
-int parseCommand(cmd*, boot*);
+    // shell command functions
+    int parseCommand(cmd *, boot *);
 void addToken(cmd*, char*);
 void addNull(cmd*);
 void clearCommand(cmd*);
@@ -416,6 +417,25 @@ uint32_t arr2val(uint8_t *x, int size)
         tmp = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
 
     return tmp;
+}
+
+int isEndOfCluster(FILE *img, const int nextCluster)
+{
+    int i;
+    
+    unsigned char eocMarker1[] = {248, 255, 255, 15};
+    unsigned char eocMarker2[] = {240, 255, 255, 15};
+    unsigned char clusterInfo[4];
+
+    fseek(img, nextCluster, SEEK_SET);
+
+    for (i = 0; i < 4; i++)
+        clusterInfo[i] = fgetc(img);
+
+    for (i = 0; i < 4; i++)
+        if (clusterInfo[i] != eocMarker1[i])
+            return 0;
+    return 1;
 }
 
 void f_exit() 
