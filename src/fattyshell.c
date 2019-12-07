@@ -34,6 +34,7 @@ int main(int argc, char** argv)
     if (fp) 
     {  
         initBoot(fp, &f_boot);
+        initFAT(&f_boot, &f_fat);
     }
     else
     {

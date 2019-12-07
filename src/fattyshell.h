@@ -40,7 +40,8 @@ typedef enum op_t
     CD, 
     MKDIR, 
     RMDIR,
-    ERROR
+    ERROR,
+    HELP
 
 } op;
 
@@ -303,8 +304,33 @@ void initBoot(FILE* fp, boot* f_boot)
 
 }
 
+void initFAT(boot* f_boot, fat* f_fat)
+{   
+    uint32_t BPB_RootEntCnt = arr2val(f_boot->BPB_RootEntCnt, 2);
+    uint32_t BPB_BytsPerSec = arr2val(f_boot->BPB_BytsPerSec, 2);
+    uint32_t BPB_ResvdSecCnt = arr2val(f_boot->BPB_RsvdSecCnt, 2);
+    uint32_t BPB_NumFATs = arr2val(f_boot->BPB_NumFATs, 1);
+    uint32_t BPB_SecPerClus = arr2val(f_boot->BPB_SecPerClus, 1);
+    uint32_t FATSz, TotSec;
+    
+    if (arr2val(f_boot->BPB_FATSz32, 4) != 0)
+        FATSz = arr2val(f_boot->BPB_FATSz32, 4);
+    else
+        FATSz = arr2val(f_boot->BPB_FATSz16, 2);
+
+    if (arr2val(f_boot->BPB_TotSec32, 4) != 0)
+        TotSec = arr2val(f_boot->BPB_TotSec32, 4);
+    else
+        TotSec = arr2val(f_boot->BPB_TotSec16, 2);
+
+    f_fat->RootDirSectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec;
+    f_fat->DataSec = TotSec - (BPB_ResvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors);
+    f_fat->CountofClusters = f_fat->DataSec / BPB_SecPerClus;
+}
+
 void printMenu()
-{
+{   
+    printf("\nValid Options:\n");
     printf("creat FILENAME\n");
     printf("open FILENAME\n");
     printf("close FILENAME\n");
@@ -317,13 +343,15 @@ void printMenu()
     printf("mkdir DIRNAME\n");
     printf("rmdir DIRNAME\n");
     printf("info\n");
-    printf("exit\n");
+    printf("exit\n\n");
 }
 
 int getChoice(const char* tok)
 {
     if (tok == NULL)                        return -1;
     if (strcmp(tok, "exit") == 0)           return EXIT;
+    else if (strcmp(tok, "h") == 0)         return HELP;
+    else if (strcmp(tok, "help") == 0)      return HELP;
     else if (strcmp(tok, "info") == 0)      return INFO;
     else if (strcmp(tok, "size") == 0)      return SIZE;
     else if (strcmp(tok, "creat") == 0)     return CREATE;
@@ -435,6 +463,9 @@ int parseCommand(cmd* instr, boot* f_boot)
         return -1;
     switch (getChoice(instr->tokens[0]))
     {
+        case HELP:
+            printMenu();
+            break;
         case EXIT:
             f_exit();
             break;
