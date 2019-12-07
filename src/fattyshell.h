@@ -132,6 +132,10 @@ uint32_t arr2val(uint8_t *, int);
 void cnvtEndian(uint8_t*, int);
 void ascii2dec(uint8_t *);
 void printMenu();
+int isLast(dir*);
+int isEmpty(dir*);
+int isLong(dir*);
+int isEndOfCluster(FILE*, const int);
 
 // shell command functions
 int parseCommand(cmd*, boot*, fat*, dir*);
@@ -429,6 +433,25 @@ uint32_t arr2val(uint8_t *x, int size)
     return tmp;
 }
 
+int isEndOfCluster(FILE *img, const int nextCluster)
+{
+    int i;
+    
+    unsigned char eocMarker1[] = {248, 255, 255, 15};
+    unsigned char eocMarker2[] = {240, 255, 255, 15};
+    unsigned char clusterInfo[4];
+
+    fseek(img, nextCluster, SEEK_SET);
+
+    for (i = 0; i < 4; i++)
+        clusterInfo[i] = fgetc(img);
+
+    for (i = 0; i < 4; i++)
+        if (clusterInfo[i] != eocMarker1[i])
+            return 0;
+    return 1;
+}
+
 void f_exit() 
 {
     run = 0;
@@ -561,5 +584,73 @@ void clearCommand(cmd* instr)
 	instr->tokens = NULL;
 	instr->size = 0;
 }
+
+
+/*
+*
+*
+*
+*
+*
+*
+*
+*   hayden testing
+*
+*
+*
+*
+* note: need to implement little
+*
+*
+*/
+int isLast(dir* dir)
+{
+    // if (littleEndian(dir->DIR_Name, 1) == 0)
+    //     return 1;
+    // else
+    //     return 0;
+    return 0;
+    // need to implement littleEndian with two parameters
+}
+
+
+int isEmpty(dir* dir)
+{
+    if( (int)dir->DIR_Name[0] == 229 )
+        return 1;
+    else
+        return 0;
+}
+
+
+int isLong(dir* dir)
+{
+    unsigned char dirAttrib = dir->DIR_Attr[0];
+    unsigned char mask = 15;
+
+    if((dirAttrib & mask) == 15)
+        return 1;
+    else 
+        return 0;
+}
+
+/*
+*
+*
+*
+*
+*
+*
+*
+* hayden testing
+*
+*
+*
+*
+*
+*
+*
+*/
+
 
 #endif
