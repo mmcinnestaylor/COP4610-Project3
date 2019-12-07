@@ -135,6 +135,9 @@ uint32_t arr2val(uint8_t *, int);
 void cnvtEndian(uint8_t*, int);
 void ascii2dec(uint8_t *);
 void printMenu();
+int isLast(data_t*);
+int isEmpty(data_t*);
+int isLong(data_t*);
 
 // shell command functions
 int parseCommand(cmd*, boot*);
@@ -547,6 +550,25 @@ void clearCommand(cmd* instr)
 
 	instr->tokens = NULL;
 	instr->size = 0;
+}
+
+
+
+int isLast(data_t* dir)
+{
+    return 0;
+}
+
+
+int isEmpty(data_t* dir)
+{
+    return 0;
+}
+
+
+int isLong(data_t* dir)
+{
+    return 0;
 }
 
 #endif
