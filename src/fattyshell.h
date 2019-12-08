@@ -123,7 +123,7 @@ void loadDir(FILE*, dir*);
 // fat32 functions
 void f_exit();
 void f_info(boot*);
-int f_size();
+long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
 int f_open();
 int f_read();
 int f_close();
@@ -556,6 +556,42 @@ void f_info(boot* f_boot)
     printf("%c\n", '\0');
 }
 
+long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
+{
+    if (!fp)
+        return -2;
+
+    long int size = -1;
+    int start = ftell(fp);
+    int next = f_fat->curClus;
+    dir *tmp = NULL;
+    do
+    {
+        next = getEntVal(fp, calcNext(f_fat, next));
+        printf("next: %d\n", next);
+        if ((tmp = initDir(fp, f_fat, next)) != NULL)
+        {
+            printf("dir name: %s\n", tmp->DIR_Name);
+            if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
+            {
+                size = arr2val(tmp->DIR_FileSize, 4);
+                
+            }
+            free(tmp);
+            return size;
+        }
+        else
+        {
+            return size;
+        }
+
+    } while (next != EOC);
+
+    fseek(fp, start, SEEK_SET);
+    return size;
+}
+
+
 int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
 {
     if (!fp)
@@ -619,7 +655,7 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
     if (instr->size == 0)
         return -1;
     
-    int n;
+    long int n;
     switch (getChoice(instr->tokens[0]))
     {
         case HELP:
@@ -638,6 +674,12 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
         case WRITE: 
         case READ:
         case SIZE:
+            if (n == -1)
+                printf("%s: Does not exist.\n", instr->tokens[1]);
+            else if (n == -2)
+                printf("Error with file pointer.\n");
+            else
+                printf("Size of %s is: %d\n", instr->tokens[1], n);
         case LS:
         case CD:
             n = f_cd(fp, f_fat, f_dir, instr);
