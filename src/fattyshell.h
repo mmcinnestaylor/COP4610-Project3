@@ -387,7 +387,7 @@ int calcNext(fat* f_fat)
 void printMenu()
 {   
     printf("\nValid Options:\n");
-    printf("create FILENAME\n");
+    printf("creat FILENAME\n");
     printf("open FILENAME\n");
     printf("close FILENAME\n");
     printf("rm FILENAME\n");
@@ -410,7 +410,7 @@ int getChoice(const char* tok)
     else if (strcmp(tok, "help") == 0)      return HELP;
     else if (strcmp(tok, "info") == 0)      return INFO;
     else if (strcmp(tok, "size") == 0)      return SIZE;
-    else if (strcmp(tok, "create") == 0)     return CREATE;
+    else if (strcmp(tok, "creat") == 0)     return CREATE;
     else if (strcmp(tok, "open") == 0)      return OPEN;
     else if (strcmp(tok, "read") == 0)      return READ;
     else if (strcmp(tok, "close") == 0)     return CLOSE;
