@@ -58,19 +58,32 @@ The git commit log is inluded as a .txt file within the tar.
 
 ### Assessment of each task/section & known bugs
 
-* Part 1: no known bugs
-* Part 2: no known bugs
-* Part 3: not fully implemented
-* Part 4: not fully implemented
-* Part 5: not fully implemented
-* Part 6: not fully implemented
-* Part 7: not fully implemented
-* Part 8: not fully implemented
-* Part 9: not fully implemented
-* Part 10: not fully implemented
-* Part 11: not fully implemented
-* Part 12: not fully implemented
-* Part 13: not fully implemented
+* Part 1: 
+  * no known bugs
+* Part 2: 
+  * no known bugs
+* Part 3: 
+  * not fully implemented
+* Part 4: 
+  * not fully implemented
+* Part 5: 
+  * not fully implemented
+* Part 6: 
+  * not fully implemented
+* Part 7: 
+  * not fully implemented
+* Part 8: 
+  * not fully implemented
+* Part 9: 
+  * not fully implemented
+* Part 10: 
+  * not fully implemented
+* Part 11: 
+  * not fully implemented
+* Part 12: 
+  * not fully implemented
+* Part 13: 
+  * not fully implemented
 
 
 ### EXTRA CREDIT
