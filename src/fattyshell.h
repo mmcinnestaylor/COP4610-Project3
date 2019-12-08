@@ -21,7 +21,7 @@
 #define ATTR_DIRECTORY  0x10
 #define ATTR_ARCHIVE    0x20
 #define ATTR_LONG_NAME  (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID)
-#define EOC             0x0FFFFFF8
+#define EOC             0x0FFFFF8
 
 static int run = 1;
 
@@ -89,6 +89,7 @@ typedef struct fat_t
 {
     uint32_t CountofClusters;
     uint32_t RootDirSectors;
+    uint32_t FirstDataSec;
     uint32_t BytsPerSec;
     uint32_t RsvdSecCnt;
     uint32_t SecPerClus;
@@ -300,10 +301,11 @@ void initFAT(boot* f_boot, fat* f_fat)
     f_fat->RsvdSecCnt = arr2val(f_boot->BPB_RsvdSecCnt, 2);
     f_fat->SecPerClus = arr2val(f_boot->BPB_SecPerClus, 1);
     f_fat->RootDirSectors = ((BPB_RootEntCnt * 32) + (f_fat->BytsPerSec - 1)) / f_fat->BytsPerSec;
+    f_fat->FirstDataSec = f_fat->RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors;
     f_fat->DataSec = TotSec - (f_fat->RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors);
     f_fat->CountofClusters = f_fat->DataSec / f_fat->SecPerClus;
     f_fat->MAX = f_fat->CountofClusters + 1;
-    f_fat->DataSec = f_fat->RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors;    // reset to data region size
+    //f_fat->DataSec = f_fat->RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors;    // reset to data region size
     f_fat->curClus = f_fat->RootClus = arr2val(f_boot->BPB_RootClus, 4);
 }
 
@@ -345,19 +347,20 @@ void loadDir(FILE* fp, dir* f_dir)
     fread(f_dir->DIR_FileSize, sizeof(uint8_t), 4, fp);
     cnvtEndian(f_dir->DIR_FileSize, 4);
 }
-//n: cluster
+//n: cluster; first sector of cluster n
 int calcClus(fat* f_fat, int n)
 {
-    return f_fat->DataSec + ((n - 2) * f_fat->SecPerClus);
+    printf("%d + ((%d - 2) * %d) = %d\n", f_fat->DataSec, n, f_fat->SecPerClus, f_fat->DataSec + ((n - 2) * f_fat->SecPerClus));
+    return f_fat->FirstDataSec + ((n - 2) * f_fat->SecPerClus);
 }
 
-//n: sector
+//n: sector number; addr (bytes) in fat img
 int calcFATSecAddr(fat* f_fat, int n)
 {  
     return n * (f_fat->BytsPerSec * f_fat->SecPerClus);
 }
 
-//n: cluster
+//n: cluster; sec in entry
 int calcFATSecNum(fat* f_fat, int n)
 {
     int FATOffset = n * 4;
@@ -377,9 +380,9 @@ int calcNext(fat* f_fat, int n)
     int thisFATEntSec = calcFATSecNum(f_fat, n);
     int thisFATEntOffset = calcFATOff(f_fat, n);
 
-    printf("thisFATEntSecNum: %d (0x%08x)\n", thisFATEntSec, thisFATEntSec);
-    printf("thisFATEntOffset: %d (0x%08x)\n", thisFATEntOffset, thisFATEntOffset);
-    printf("nextAddr: %d (0x%08x)\n", calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset, calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset);
+    //printf("thisFATEntSecNum: %d (0x%08x)\n", thisFATEntSec, thisFATEntSec);
+    //printf("thisFATEntOffset: %d (0x%08x)\n", thisFATEntOffset, thisFATEntOffset);
+    //printf("nextAddr: %d (0x%08x)\n", calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset, calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset);
     return calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset;
 }
 
@@ -391,8 +394,10 @@ int getEntVal(FILE* fp, int n)
     {  
         fseek(fp, n, SEEK_SET);
         fread(data, sizeof(uint8_t), 4, fp);
+        printf("%d (0x%08x)\n", arr2val(data, 4));
         cnvtEndian(data, 4);
-        
+        printf("%d (0x%08x)\n", arr2val(data, 4) & 0xFFFFFFFF);
+
         return arr2val(data, 4);
     }
     else
@@ -564,13 +569,11 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     int start = ftell(fp);
     int next = f_fat->curClus;
     dir* tmp = NULL;
-    do 
+    while ((next = getEntVal(fp, calcNext(f_fat, next))) < EOC)
     {
-        next = getEntVal(fp, calcNext(f_fat, next));
-        printf("next: %d\n", next);
         if ((tmp = initDir(fp, f_fat, next)) != NULL)
         {
-            printf("dir name: %s\n", tmp->DIR_Name);
+            printf("dir name: 0x%02x\n", tmp->DIR_Name[0]);
             if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
             {   
                 if (tmp->DIR_Attr == ATTR_DIRECTORY)
@@ -606,8 +609,7 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
         {
             return -2;
         }
-
-    } while (next != EOC);
+    }
 
     fseek(fp, start, SEEK_SET);
     return -1;
