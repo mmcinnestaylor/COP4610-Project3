@@ -41,7 +41,6 @@ int main(int argc, char** argv)
         printf("Error opening %s\n", argv[1]);
         return -1;
     }
-    fclose(fp);
     // beginning of shell
     printf("Fatty Shell\nEnter \"help\" or \"h\" to view available commands\n");
     char *tok = NULL;
@@ -97,12 +96,13 @@ int main(int argc, char** argv)
         } while ('\n' != getchar());
 
         addNull(&instr);
-        parseCommand(&instr, &f_boot, &f_fat, &f_dir);
+        parseCommand(fp, &instr, &f_boot, &f_fat, &f_dir);
 
         //printTokens(&instr);
         clearCommand(&instr);
 
     } while (run);
-    
+
+    fclose(fp);
     return 0;
 }

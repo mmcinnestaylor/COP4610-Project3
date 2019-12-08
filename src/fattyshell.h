@@ -21,6 +21,7 @@
 #define ATTR_DIRECTORY  0x10
 #define ATTR_ARCHIVE    0x20
 #define ATTR_LONG_NAME  (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID)
+#define EOC             0x0FFFFFF8
 
 static int run = 1;
 
@@ -88,12 +89,15 @@ typedef struct fat_t
 {
     uint32_t CountofClusters;
     uint32_t RootDirSectors;
+    uint32_t BytsPerSec;
+    uint32_t RsvdSecCnt;
     uint32_t SecPerClus;
     uint32_t RootClus;
     uint32_t curClus;
     uint32_t DataSec;
     uint32_t TotSec;
     uint32_t FATSz;
+    uint32_t MAX;
 
 } __attribute__ ((packed)) fat;
 
@@ -113,6 +117,8 @@ typedef struct dir_t
 void initBoot(FILE*, boot*);
 void initFAT(boot*, fat*);
 dir* initDir(FILE*, fat*, int);
+void loadDir(FILE*, dir*);
+
 
 // fat32 functions
 void f_exit();
@@ -121,12 +127,17 @@ int f_size();
 int f_open();
 int f_read();
 int f_close();
+int f_cd(FILE*, fat*, dir*, cmd*);
 
 
 // helper functions
-int calc(fat*);
-int calcNext(fat*);
+int calcClus(fat*, int);
+int calcNext(fat*, int);
+int calcFATSecAddr(fat*, int);
+int calcFATSecNum(fat*, int);
+int calcFATOff(fat*, int);
 int getChoice(const char*);
+int getEntVal(FILE*, int);
 void dec2hex(uint8_t*);
 void hex2dec(uint8_t*);
 uint32_t arr2val(uint8_t *, int);
@@ -139,9 +150,7 @@ int isLong(dir*);
 int isEndOfCluster(FILE*, const int);
 
 // shell command functions
-int parseCommand(cmd*, boot*, fat*, dir*);
-int nextCluster(fat*);
-// shell command functions
+int parseCommand(FILE*, cmd*, boot*, fat*, dir*);
 void addToken(cmd*, char*);
 void addNull(cmd*);
 void clearCommand(cmd*);
@@ -162,7 +171,7 @@ void initBoot(FILE* fp, boot* f_boot)
 
         pos += fread(f_boot->BS_OEMName, sizeof(uint8_t), 8, fp);    // 3 - 10
         size = sizeof(f_boot->BS_OEMName) / sizeof(uint8_t);        
-        cnvtEndian(f_boot->BS_OEMName, size);
+        //cnvtEndian(f_boot->BS_OEMName, size);
 
         pos += fread(f_boot->BPB_BytsPerSec, sizeof(uint8_t), 2, fp);    // 11 - 12
         size = sizeof(f_boot->BPB_BytsPerSec) / sizeof(uint8_t);        
@@ -258,60 +267,22 @@ void initBoot(FILE* fp, boot* f_boot)
 
         pos += fread(f_boot->BS_VolLab, sizeof(uint8_t), 11, fp);    // 71 - 81
         size = sizeof(f_boot->BS_VolLab) / sizeof(uint8_t);        
-        cnvtEndian(f_boot->BS_VolLab, size);
+        //cnvtEndian(f_boot->BS_VolLab, size);
 
         pos += fread(f_boot->BS_FilSysType, sizeof(uint8_t), 8, fp); // 82 - 89
         size = sizeof(f_boot->BS_FilSysType) / sizeof(uint8_t);        
-        cnvtEndian(f_boot->BS_FilSysType, size);
+        //cnvtEndian(f_boot->BS_FilSysType, size);
 
         fseek(fp, 510 - pos, SEEK_CUR);
         fread(f_boot->Signature_word, sizeof(uint8_t), 2, fp);    // 510 - 511
         size = sizeof(f_boot->Signature_word) / sizeof(uint8_t);        
         cnvtEndian(f_boot->Signature_word, size);
-        
-        /*
-        int i;
-        printf("BS_jmpBoot: 0x%08x\n", arr2val(f_boot->BS_jmpBoot, 3));
-        for (i = 0; i < 8; i++)
-            printf("BS_OEMName: 0x%02x\n", f_boot->BS_OEMName[i]);
-        printf("BytsPerSec: 0x%08x\n", arr2val(f_boot->BPB_BytsPerSec, 2));
-        printf("SecPerClus: 0x%08x\n", arr2val(f_boot->BPB_SecPerClus, 1));
-        printf("RsvdSecCnt: 0x%08x\n", arr2val(f_boot->BPB_RsvdSecCnt, 2));
-        printf("NumFATs: 0x%08x\n", arr2val(f_boot->BPB_NumFATs, 1));
-        printf("RootEntCnt: 0x%08x\n", arr2val(f_boot->BPB_RootEntCnt, 2));
-        printf("TotSec16: 0x%08x\n", arr2val(f_boot->BPB_TotSec16, 2));
-        printf("Media: 0x%08x\n", arr2val(f_boot->BPB_Media, 1));
-        printf("FATSz16: 0x%08x\n", arr2val(f_boot->BPB_FATSz16, 2));
-        printf("SecPerTrk: 0x%08x\n", arr2val(f_boot->BPB_SecPerTrk, 2));
-        printf("NumHeads: 0x%08x\n", arr2val(f_boot->BPB_NumHeads, 2));
-        printf("HiddSec: 0x%08x\n", arr2val(f_boot->BPB_HiddSec, 4));
-        printf("TotSec32: 0x%08x\n", arr2val(f_boot->BPB_TotSec32, 4));
-        printf("FATSz32: 0x%08x\n", arr2val(f_boot->BPB_FATSz32, 4));
-        printf("ExtFlags: 0x%08x\n", arr2val(f_boot->BPB_ExtFlags, 2));
-        printf("FSVer: 0x%08x\n", arr2val(f_boot->BPB_FSVer, 2));
-        printf("RootClus: 0x%08x\n", arr2val(f_boot->BPB_RootClus, 4));
-        printf("FSInfo: 0x%08x\n", arr2val(f_boot->BPB_FSInfo, 2));
-        printf("BkBootSec: 0x%08x\n", arr2val(f_boot->BPB_BkBootSec, 2));
-        for (i = 0; i < 12; i++)
-            printf("Reserved: 0x%02x\n", f_boot->BPB_Reserved[i]);
-        printf("DrvNum: 0x%08x\n", arr2val(f_boot->BS_DrvNum, 1));
-        printf("Reserved1: 0x%08x\n", arr2val(f_boot->BS_Reserved1, 1));
-        printf("BootSig: 0x%08x\n", arr2val(f_boot->BS_BootSig, 1));
-        printf("VolID: 0x%08x\n", arr2val(f_boot->BS_VolID, 4));
-        for (i = 0; i < 11; i++)
-            printf("VolLab: 0x%02x\n", f_boot->BS_VolLab[i]);
-        for (i = 0; i < 8; i++)
-            printf("FilSysType: 0x%02x\n", f_boot->BS_FilSysType[i]);
-        printf("Sig_word: 0x%08x\n", arr2val(f_boot->Signature_word, 2));
-        */
     }
 }
 
 void initFAT(boot* f_boot, fat* f_fat)
 {   
     uint32_t BPB_RootEntCnt = arr2val(f_boot->BPB_RootEntCnt, 2);
-    uint32_t BPB_BytsPerSec = arr2val(f_boot->BPB_BytsPerSec, 2);
-    uint32_t BPB_RsvdSecCnt = arr2val(f_boot->BPB_RsvdSecCnt, 2);
     uint32_t BPB_NumFATs = arr2val(f_boot->BPB_NumFATs, 1);
     uint32_t FATSz, TotSec;
     
@@ -324,64 +295,116 @@ void initFAT(boot* f_boot, fat* f_fat)
         TotSec = arr2val(f_boot->BPB_TotSec32, 4);
     else
         TotSec = arr2val(f_boot->BPB_TotSec16, 2);
-
+    
+    f_fat->BytsPerSec = arr2val(f_boot->BPB_BytsPerSec, 2);
+    f_fat->RsvdSecCnt = arr2val(f_boot->BPB_RsvdSecCnt, 2);
     f_fat->SecPerClus = arr2val(f_boot->BPB_SecPerClus, 1);
-    f_fat->RootDirSectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec;
-    f_fat->DataSec = BPB_RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors;
+    f_fat->RootDirSectors = ((BPB_RootEntCnt * 32) + (f_fat->BytsPerSec - 1)) / f_fat->BytsPerSec;
+    f_fat->DataSec = TotSec - (f_fat->RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors);
     f_fat->CountofClusters = f_fat->DataSec / f_fat->SecPerClus;
+    f_fat->MAX = f_fat->CountofClusters + 1;
+    f_fat->DataSec = f_fat->RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors;    // reset to data region size
     f_fat->curClus = f_fat->RootClus = arr2val(f_boot->BPB_RootClus, 4);
 }
 
 dir* initDir(FILE* fp, fat* f_fat, int n)
 {
-    int size;
-    int pos = 0;
-    int firstSecOfClus = calc(f_fat);
+    if (!fp)
+        return NULL;
 
-    dir *f_dir = (dir*)malloc(sizeof(dir));
-    fseek(fp, firstSecOfClus * 512, SEEK_SET);
-
-    printf("firstSecOfClus * 512: 0x%08x\n", firstSecOfClus * 512);
-
-    pos += fread(f_dir->DIR_Name, sizeof(char), 11, fp);
-    size = sizeof(f_dir->DIR_Name) / sizeof(char);
-    cnvtEndian((uint8_t*)f_dir->DIR_Name, size);
+    int start = ftell(fp);
+    int firstSecOfClus = calcClus(f_fat, n);
+    int pos = calcFATSecAddr(f_fat, firstSecOfClus);
     
-    pos += fread(f_dir->DIR_Attr, sizeof(uint8_t), 1, fp);
-    size = sizeof(f_dir->DIR_Attr) / sizeof(uint8_t);
-    cnvtEndian(f_dir->DIR_Attr, size);
-   
-    pos += fread(f_dir->DIR_NTRes, sizeof(uint8_t), 1, fp);
-    size = sizeof(f_dir->DIR_NTRes) / sizeof(uint8_t);
-    cnvtEndian(f_dir->DIR_NTRes, size);
-
-    fseek(fp, 7, SEEK_CUR);
-
-    pos += fread(f_dir->DIR_FstClusHI, sizeof(uint8_t), 2, fp);
-    size = sizeof(f_dir->DIR_FstClusHI) / sizeof(uint8_t);
-    cnvtEndian(f_dir->DIR_FstClusHI, size);
-
-    fseek(fp, 4, SEEK_CUR);
-
-    pos += fread(f_dir->DIR_FstClusLO, sizeof(uint8_t), 2, fp);
-    size = sizeof(f_dir->DIR_FstClusLO) / sizeof(uint8_t);
-    cnvtEndian(f_dir->DIR_FstClusLO, size);
-
-    pos += fread(f_dir->DIR_FileSize, sizeof(uint8_t), 4, fp);
-    size = sizeof(f_dir->DIR_FileSize) / sizeof(uint8_t);
-    cnvtEndian(f_dir->DIR_FileSize, size);
-
+    fseek(fp, pos, SEEK_SET);
+    dir *f_dir = (dir*)malloc(sizeof(dir));
+    loadDir(fp, f_dir);
+    fseek(fp, start, SEEK_SET);
+    
     return f_dir;
 }
 
-int calc(fat* f_fat)
+void loadDir(FILE* fp, dir* f_dir)
 {
-    return f_fat->DataSec + ((f_fat->curClus - 2) * f_fat->SecPerClus);
+    fread(f_dir->DIR_Name, sizeof(char), 11, fp);
+    cnvtEndian((uint8_t*)f_dir->DIR_Name, 11);
+    
+    fread(f_dir->DIR_Attr, sizeof(uint8_t), 1, fp);
+    fread(f_dir->DIR_NTRes, sizeof(uint8_t), 1, fp);
+
+    fseek(fp, 7, SEEK_CUR);
+
+    fread(f_dir->DIR_FstClusHI, sizeof(uint8_t), 2, fp);
+    cnvtEndian(f_dir->DIR_FstClusHI, 2);
+
+    fseek(fp, 4, SEEK_CUR);
+
+    fread(f_dir->DIR_FstClusLO, sizeof(uint8_t), 2, fp);
+    cnvtEndian(f_dir->DIR_FstClusLO, 2);
+
+    fread(f_dir->DIR_FileSize, sizeof(uint8_t), 4, fp);
+    cnvtEndian(f_dir->DIR_FileSize, 4);
+}
+//n: cluster
+int calcClus(fat* f_fat, int n)
+{
+    return f_fat->DataSec + ((n - 2) * f_fat->SecPerClus);
 }
 
-int calcNext(fat* f_fat)
+//n: sector
+int calcFATSecAddr(fat* f_fat, int n)
+{  
+    return n * (f_fat->BytsPerSec * f_fat->SecPerClus);
+}
+
+//n: cluster
+int calcFATSecNum(fat* f_fat, int n)
 {
-    return f_fat->curClus + f_fat->SecPerClus;
+    int FATOffset = n * 4;
+    return f_fat->RsvdSecCnt + (FATOffset / f_fat->BytsPerSec);
+}
+
+//n: cluster
+int calcFATOff(fat* f_fat, int n)
+{
+    int FATOffset = n * 4;
+    return FATOffset % f_fat->BytsPerSec;
+}
+
+//n: cluster
+int calcNext(fat* f_fat, int n)
+{
+    int thisFATEntSec = calcFATSecNum(f_fat, n);
+    int thisFATEntOffset = calcFATOff(f_fat, n);
+
+    printf("thisFATEntSecNum: %d (0x%08x)\n", thisFATEntSec, thisFATEntSec);
+    printf("thisFATEntOffset: %d (0x%08x)\n", thisFATEntOffset, thisFATEntOffset);
+    printf("nextAddr: %d (0x%08x)\n", calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset, calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset);
+    return calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset;
+}
+
+int getEntVal(FILE* fp, int n)
+{
+    uint8_t data[4];
+
+    if (fp)
+    {  
+        fseek(fp, n, SEEK_SET);
+        fread(data, sizeof(uint8_t), 4, fp);
+        cnvtEndian(data, 4);
+        
+        return arr2val(data, 4);
+    }
+    else
+    {
+        printf("Error with file pointer in getEntVal\n");
+        return -1;
+    }   
+}
+
+int catClusHILO(dir* f_dir)
+{
+    return ((f_dir->DIR_FstClusHI[0] << 24) | (f_dir->DIR_FstClusHI[1] << 16) | (f_dir->DIR_FstClusLO[0] << 8) | f_dir->DIR_FstClusLO[1]);
 }
 
 void printMenu()
@@ -500,13 +523,14 @@ void f_info(boot* f_boot)
 {
     int i;
     printf("BS_jmpBoot: 0x%08x\n", arr2val(f_boot->BS_jmpBoot, 3));
+    printf("BS_OEMName: ");
     for (i = 0; i < 8; i++)
-        printf("BS_OEMName: 0x%02x\n", f_boot->BS_OEMName[i]);
-    printf("BytsPerSec: 0x%08x\n", arr2val(f_boot->BPB_BytsPerSec, 2));
-    printf("SecPerClus: 0x%08x\n", arr2val(f_boot->BPB_SecPerClus, 1));
-    printf("RsvdSecCnt: 0x%08x\n", arr2val(f_boot->BPB_RsvdSecCnt, 2));
-    printf("NumFATs: 0x%08x\n", arr2val(f_boot->BPB_NumFATs, 1));
-    printf("RootEntCnt: 0x%08x\n", arr2val(f_boot->BPB_RootEntCnt, 2));
+        printf("%c", f_boot->BS_OEMName[i]);
+    printf("\nBytsPerSec: %d\n", arr2val(f_boot->BPB_BytsPerSec, 2));
+    printf("SecPerClus: %d\n", arr2val(f_boot->BPB_SecPerClus, 1));
+    printf("RsvdSecCnt: %d\n", arr2val(f_boot->BPB_RsvdSecCnt, 2));
+    printf("NumFATs: %d\n", arr2val(f_boot->BPB_NumFATs, 1));
+    printf("RootEntCnt: %d\n", arr2val(f_boot->BPB_RootEntCnt, 2));
     printf("TotSec16: 0x%08x\n", arr2val(f_boot->BPB_TotSec16, 2));
     printf("Media: 0x%08x\n", arr2val(f_boot->BPB_Media, 1));
     printf("FATSz16: 0x%08x\n", arr2val(f_boot->BPB_FATSz16, 2));
@@ -526,17 +550,76 @@ void f_info(boot* f_boot)
     printf("Reserved1: 0x%08x\n", arr2val(f_boot->BS_Reserved1, 1));
     printf("BootSig: 0x%08x\n", arr2val(f_boot->BS_BootSig, 1));
     printf("VolID: 0x%08x\n", arr2val(f_boot->BS_VolID, 4));
-    for (i = 0; i < 11; i++)
-        printf("VolLab: 0x%02x\n", f_boot->BS_VolLab[i]);
-    for (i = 0; i < 8; i++)
-        printf("FilSysType: 0x%02x\n", f_boot->BS_FilSysType[i]);
+    printf("VolLab: %s\n", (char*)f_boot->BS_VolLab);
+    printf("FilSysType: %s\n", (char*)f_boot->BS_FilSysType);
     printf("Sig_word: 0x%08x\n", arr2val(f_boot->Signature_word, 2));
+    printf("%c\n", '\0');
 }
 
-int parseCommand(cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
+int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
+{
+    if (!fp)
+        return -2;
+
+    int start = ftell(fp);
+    int next = f_fat->curClus;
+    dir* tmp = NULL;
+    do 
+    {
+        next = getEntVal(fp, calcNext(f_fat, next));
+        printf("next: %d\n", next);
+        if ((tmp = initDir(fp, f_fat, next)) != NULL)
+        {
+            printf("dir name: %s\n", tmp->DIR_Name);
+            if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
+            {   
+                if (tmp->DIR_Attr == ATTR_DIRECTORY)
+                {
+                    f_fat->curClus = next;
+                    fseek(fp, start, SEEK_SET);
+
+                    memmove(f_dir->DIR_Name, tmp->DIR_Name, 11);
+                    memmove(f_dir->DIR_Attr, tmp->DIR_Attr, 1);
+                    memmove(f_dir->DIR_NTRes, tmp->DIR_NTRes, 1);
+                    memmove(f_dir->DIR_FstClusHI, tmp->DIR_FstClusHI, 2);
+                    memmove(f_dir->DIR_FstClusLO, tmp->DIR_FstClusLO, 2);
+                    memmove(f_dir->DIR_FileSize, tmp->DIR_FileSize, 4);
+                    
+                    free(tmp);
+                    tmp = NULL;
+                    return 0;
+                }
+                else
+                {
+                    free(tmp);
+                    tmp = NULL; 
+                    return -1;  
+                }
+            }
+            else
+            {
+                free(tmp);
+                tmp = NULL;
+            }   
+        }
+        else
+        {
+            return -2;
+        }
+
+    } while (next != EOC);
+
+    fseek(fp, start, SEEK_SET);
+    return -1;
+}
+
+
+int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
 {
     if (instr->size == 0)
         return -1;
+    
+    int n;
     switch (getChoice(instr->tokens[0]))
     {
         case HELP:
@@ -556,7 +639,15 @@ int parseCommand(cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
         case READ:
         case SIZE:
         case LS:
-        case CD: 
+        case CD:
+            n = f_cd(fp, f_fat, f_dir, instr);
+            if (n == -1)
+                printf("%s: Does not exist or is not a directory.\n", instr->tokens[1]); 
+            else if (n == -2)
+                printf("Error with file pointer.\n");
+            else
+                printf("CWD is now: %s\n", instr->tokens[1]);
+            break;
         case MKDIR: 
         case RMDIR:
         case ERROR:
