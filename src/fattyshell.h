@@ -387,7 +387,7 @@ int calcNext(fat* f_fat)
 void printMenu()
 {   
     printf("\nValid Options:\n");
-    printf("creat FILENAME\n");
+    printf("create FILENAME\n");
     printf("open FILENAME\n");
     printf("close FILENAME\n");
     printf("rm FILENAME\n");
@@ -625,23 +625,6 @@ void clearCommand(cmd* instr)
 }
 
 
-/*
-*
-*
-*
-*
-*
-*
-*
-*   hayden testing
-*
-*
-*
-*
-* note: need to implement little
-*
-*
-*/
 int isLast(dir* dir)
 {
     // if (littleEndian(dir->DIR_Name, 1) == 0)
@@ -649,7 +632,6 @@ int isLast(dir* dir)
     // else
     //     return 0;
     return 0;
-    // need to implement littleEndian with two parameters
 }
 
 
@@ -672,24 +654,6 @@ int isLong(dir* dir)
     else 
         return 0;
 }
-
-/*
-*
-*
-*
-*
-*
-*
-*
-* hayden testing
-*
-*
-*
-*
-*
-*
-*
-*/
 
 
 #endif
