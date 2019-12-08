@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     // declare structs for fat regions
     boot f_boot;
     fat f_fat;
-    dir f_dir;
+    dir** f_dir[5];
 
     // open filename passed in in read/binary mode, init f_boot info
     FILE *fp = NULL;

@@ -20,6 +20,7 @@
 #define ATTR_VOLUME_ID  0x08
 #define ATTR_DIRECTORY  0x10
 #define ATTR_ARCHIVE    0x20
+#define ATTR_LONG_NAME  (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID)
 
 static int run = 1;
 
@@ -111,7 +112,7 @@ typedef struct dir_t
 // init functions
 void initBoot(FILE*, boot*);
 void initFAT(boot*, fat*);
-void initDir(fat*, int);
+dir* initDir(FILE*, fat*, int);
 
 // fat32 functions
 void f_exit();
@@ -324,15 +325,51 @@ void initFAT(boot* f_boot, fat* f_fat)
 
     f_fat->SecPerClus = arr2val(f_boot->BPB_SecPerClus, 1);
     f_fat->RootDirSectors = ((BPB_RootEntCnt * 32) + (BPB_BytsPerSec - 1)) / BPB_BytsPerSec;
-    f_fat->DataSec = TotSec - (BPB_RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors);
+    f_fat->DataSec = BPB_RsvdSecCnt + (BPB_NumFATs * FATSz) + f_fat->RootDirSectors;
     f_fat->CountofClusters = f_fat->DataSec / f_fat->SecPerClus;
     f_fat->curClus = f_fat->RootClus = arr2val(f_boot->BPB_RootClus, 4);
 }
 
-void initDir(fat* f_fat, int n)
+dir* initDir(FILE* fp, fat* f_fat, int n)
 {
+    int size;
+    int pos = 0;
     int firstSecOfClus = calc(f_fat);
-    int nextClus = calcNext(f_fat);
+
+    dir *f_dir = (dir*)malloc(sizeof(dir));
+    fseek(fp, firstSecOfClus * 512, SEEK_SET);
+
+    printf("firstSecOfClus * 512: 0x%08x\n", firstSecOfClus * 512);
+
+    pos += fread(f_dir->DIR_Name, sizeof(char), 11, fp);
+    size = sizeof(f_dir->DIR_Name) / sizeof(char);
+    cnvtEndian((uint8_t*)f_dir->DIR_Name, size);
+    
+    pos += fread(f_dir->DIR_Attr, sizeof(uint8_t), 1, fp);
+    size = sizeof(f_dir->DIR_Attr) / sizeof(uint8_t);
+    cnvtEndian(f_dir->DIR_Attr, size);
+   
+    pos += fread(f_dir->DIR_NTRes, sizeof(uint8_t), 1, fp);
+    size = sizeof(f_dir->DIR_NTRes) / sizeof(uint8_t);
+    cnvtEndian(f_dir->DIR_NTRes, size);
+
+    fseek(fp, 7, SEEK_CUR);
+
+    pos += fread(f_dir->DIR_FstClusHI, sizeof(uint8_t), 2, fp);
+    size = sizeof(f_dir->DIR_FstClusHI) / sizeof(uint8_t);
+    cnvtEndian(f_dir->DIR_FstClusHI, size);
+
+    fseek(fp, 4, SEEK_CUR);
+
+    pos += fread(f_dir->DIR_FstClusLO, sizeof(uint8_t), 2, fp);
+    size = sizeof(f_dir->DIR_FstClusLO) / sizeof(uint8_t);
+    cnvtEndian(f_dir->DIR_FstClusLO, size);
+
+    pos += fread(f_dir->DIR_FileSize, sizeof(uint8_t), 4, fp);
+    size = sizeof(f_dir->DIR_FileSize) / sizeof(uint8_t);
+    cnvtEndian(f_dir->DIR_FileSize, size);
+
+    return f_dir;
 }
 
 int calc(fat* f_fat)
