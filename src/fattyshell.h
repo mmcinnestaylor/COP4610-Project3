@@ -113,6 +113,13 @@ typedef struct dir_t
 
 } __attribute__ ((packed)) dir;
 
+typedef struct file_node
+{
+    int fstClus;
+    short mode;
+    struct file_node* next;
+} node;
+
 
 // init functions
 void initBoot(FILE*, boot*);
@@ -125,10 +132,17 @@ void loadDir(FILE*, dir*);
 void f_exit();
 void f_info(boot*);
 long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
-int f_open();
+int f_create(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
+int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles);
 int f_read();
 int f_close();
 int f_cd(FILE*, fat*, dir*, cmd*);
+
+// list functions
+node* initList();
+int add(node* openFiles, const int fstClus, const short mode);
+int removeNode(node* openFiles, const int fstClus);
+void clear(node* openFiles);
 
 
 // helper functions
@@ -549,6 +563,8 @@ int isEndOfCluster(FILE *img, const int nextCluster)
     return 1;
 }
 
+/***************COMMAND FUNCTIONS***************/
+
 void f_exit() 
 {
     run = 0;
@@ -600,7 +616,7 @@ long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
     int start = ftell(fp);
     int next = f_fat->curClus;
     dir *tmp = NULL;
-    do
+    while ((next = getEntVal(fp, calcNext(f_fat, next))) < EOC)
     {
         next = getEntVal(fp, calcNext(f_fat, next));
         printf("next: %d\n", next);
@@ -620,7 +636,7 @@ long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
             return size;
         }
 
-    } while (next != EOC);
+    }
 
     fseek(fp, start, SEEK_SET);
     return size;
@@ -674,7 +690,82 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     fseek(fp, start, SEEK_SET);
     return -1;
 }
+int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
+{
 
+}
+/***************LIST FUNCTIONS***************/
+
+node * initList()
+{
+    node* head = (node*)malloc(sizeof(node));
+    node* tail = (node*)malloc(sizeof(node));
+    tail->fstClus = 0;
+    tail->mode = 0;
+    tail->next = NULL;
+
+    head->fstClus = 0;
+    head->mode = 0;
+    head->next = tail;
+
+    return head;
+}
+
+int add(node* listHead, const int clusNum, const short fMode)
+{
+    
+    node* temp = listHead->next;
+
+    //find end of list
+    while(temp->next->next != NULL)
+        if(temp->fstClus == clusNum) //file already open
+            return 0;
+        temp = temp->next;
+
+    node* newFile = (node*)malloc(sizeof(node));
+    newFile->fstClus = clusNum;
+    newFile->mode = fMode;
+
+    newFile->next = temp->next;
+    temp->next = newFile;
+
+    return 1; //successful add
+}
+
+int removeNode(node* listHead, const int clusNum)
+{
+    node* current = listHead->next;
+    node* prev = listHead;
+
+    //find end of list
+    while(current->next != NULL){
+        //found open file in list
+        if(current->fstClus == clusNum){
+            prev->next = current->next;
+            free(current);
+            return 1;
+        }
+        
+        prev = current;
+    }
+
+    return 0;
+}
+
+void clear(node* listHead)
+{
+    node* temp = NULL;
+
+    while(listHead->next != NULL){
+        temp = listHead->next;
+        free(listHead);
+        listHead = temp;
+    }
+
+    free(listHead);
+}
+
+/***************HELPER FUNCTIONS***************/
 
 int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
 {
@@ -700,6 +791,7 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
         case WRITE: 
         case READ:
         case SIZE:
+            n = f_size(fp, f_fat, f_dir, instr);
             if (n == -1)
                 printf("%s: Does not exist.\n", instr->tokens[1]);
             else if (n == -2)
