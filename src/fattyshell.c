@@ -114,11 +114,8 @@ int main(int argc, char** argv)
 
     } while (run);
 
-<<<<<<< HEAD
     free(f_dir);
-=======
     clear(openFiles);
->>>>>>> 9d1f5399983d4abe0bc116acf17f0ca1aa2f930c
     fclose(fp);
     return 0;
 }

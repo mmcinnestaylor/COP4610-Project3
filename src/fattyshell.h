@@ -159,6 +159,7 @@ uint32_t arr2val(uint8_t *, int);
 void cnvtEndian(uint8_t*, int);
 void ascii2dec(uint8_t *);
 void printMenu();
+int isFile(uint8_t);
 int isLast(dir*);
 int isEmpty(dir*);
 int isLong(dir*);
@@ -614,30 +615,25 @@ long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
 
     long int size = -1;
     int start = ftell(fp);
-    int next = f_fat->curClus;
+    int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
     dir *tmp = NULL;
-    while ((next = getEntVal(fp, calcNext(f_fat, next))) < EOC)
+    while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
     {
-        next = getEntVal(fp, calcNext(f_fat, next));
-        printf("next: %d\n", next);
-        if ((tmp = initDir(fp, next)) != NULL)
+        if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
         {
-            printf("dir name: %s\n", tmp->DIR_Name);
-            if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
-            {
-                size = arr2val(tmp->DIR_FileSize, 4);
-                
-            }
+            size = arr2val(tmp->DIR_FileSize, 4);
             free(tmp);
             return size;
         }
         else
         {
-            return size;
+            next += 32;
         }
 
     }
 
+    if (tmp != NULL)
+        free(tmp);
     fseek(fp, start, SEEK_SET);
     return size;
 }
@@ -651,8 +647,6 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     int start = ftell(fp);
     int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
     dir* tmp = NULL;
-    int run = 1;
-    int i;
 
     while ((tmp = initDir(fp, next)) != NULL)
     {   
@@ -692,7 +686,7 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
 }
 int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
 {
-
+    return 0;
 }
 /***************LIST FUNCTIONS***************/
 
@@ -798,6 +792,7 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
                 printf("Error with file pointer.\n");
             else
                 printf("Size of %s is: %d\n", instr->tokens[1], n);
+            break;
         case LS:
         case CD:
             n = f_cd(fp, f_fat, f_dir, instr);
@@ -867,6 +862,20 @@ void clearCommand(cmd* instr)
 	instr->tokens = NULL;
 	instr->size = 0;
 }
+
+
+int isFile(uint8_t x)
+{
+    if (x == ATTR_DIRECTORY)        return 1;
+    else if (x == ATTR_HIDDEN)      return 1;
+    else if (x == ATTR_ARCHIVE)     return 1;
+    else if (x == ATTR_LONG_NAME)   return 1;
+    else if (x == ATTR_READ_ONLY)   return 1;
+    else if (x == ATTR_SYSTEM)      return 1;
+    else if (x == ATTR_VOLUME_ID)   return 1;
+    else                            return 0;
+}
+
 
 
 int isLast(dir* dir)
