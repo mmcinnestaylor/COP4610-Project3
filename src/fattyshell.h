@@ -894,52 +894,55 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
     int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
     dir *tmp = NULL;
     while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
-    {
+    {   
+        printf("%d\n", instr->size);
         if (instr->size < 4)
             return -3;
-        if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
-        {
-            if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
+        if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp((char *)tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
+        {            
+            //not a directory and read only
+            if(tmp->DIR_Attr[0] & 0x10 == 0x00 && (tmp->DIR_Attr[0] & 0x01 == 0x01)){
+                fstClus = catClusHILO(tmp);
+                //selected more is not r
+                if(strcmp(instr->tokens[2], "r") != 0)
+                    return -1;
+                else{
+                    result = add(openFiles, fstClus, 1);
+                    break;
+                }
+            }
+            //not a directory and not read only
+            else if(!(tmp->DIR_Attr[0] & 0x10 == 0x00)){
+                fstClus = catClusHILO(tmp);
+                //read
+                if(strcmp(instr->tokens[2], "r") == 0) {
+                    result = add(openFiles, fstClus, 1);
+                    break;
+                }
+                //write
+                else if(strcmp(instr->tokens[2], "w") == 0) {
+                    result = add(openFiles, fstClus, 2);
+                    break;
+                }
+                //read and write
+                else if(strcmp(instr->tokens[2], "wr") == 0 || strcmp(instr->tokens[2], "rw") == 0) {
+                    result = add(openFiles, fstClus, 3);
+                    break;
+                }
+            }
+            else
             {
-                //not a directory and read only
-                if(tmp->DIR_Attr[0] & 0x10 != 0x00 && (tmp->DIR_Attr[0] & 0x01 == 0x01)){
-                    fstClus = catClusHILO(tmp);
-                    //selected more is not r
-                    if(strcmp(instr->tokens[2], "r") != 0)
-                        return -1;
-                    else{
-                        result = add(openFiles, fstClus, 1);
-                        break;
-                    }
-                }
-                //not a directory and not read only
-                else if(tmp->DIR_Attr[0] & 0x10 != 0x00){
-                    fstClus = catClusHILO(tmp);
-                    //read
-                    if(strcmp(instr->tokens[2], "r") == 0) {
-                        result = add(openFiles, fstClus, 1);
-                        break;
-                    }
-                    //write
-                    else if(strcmp(instr->tokens[2], "w") == 0) {
-                        result = add(openFiles, fstClus, 2);
-                        break;
-                    }
-                    //read and write
-                    else if(strcmp(instr->tokens[2], "wr") == 0 || strcmp(instr->tokens[2], "rw") == 0) {
-                        result = add(openFiles, fstClus, 3);
-                        break;
-                    }
-                }
-                
-            }            
+               return -3;
+            }
+                       
         }
         else
         {
             next += 32;
+            free(tmp);
         }
-        free(tmp);
     }
+
 
     if (tmp != NULL)
         free(tmp);
