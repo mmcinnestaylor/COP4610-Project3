@@ -834,6 +834,16 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
         case CLOSE: 
         case RM:
         case OPEN:
+            n = f_size(fp, f_fat, f_dir, instr);
+            if (n == -2)
+                printf("Error with file pointer.\n");
+            if (n == -1)
+                printf("Error: %s is read only and mode is %s.\n", instr->tokens[1], instr->tokens[2]);
+            else if (n == 0)
+                printf("%s: Does not exist.\n", instr->tokens[1]);
+            else
+                printf("%s: is open.\n", instr->tokens[1]);
+
         case WRITE: 
         case READ:
         case SIZE:
