@@ -117,7 +117,7 @@ typedef struct file_node
 {
     int fstClus;
     short mode;
-    node* next;
+    struct file_node* next;
 } node;
 
 
@@ -133,7 +133,7 @@ void f_exit();
 void f_info(boot*);
 long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
 int f_create(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
-int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
+int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles);
 int f_read();
 int f_close();
 int f_cd(FILE*, fat*, dir*, cmd*);
@@ -141,7 +141,7 @@ int f_cd(FILE*, fat*, dir*, cmd*);
 // list functions
 node* initList();
 int add(node* openFiles, const int fstClus, const short mode);
-int remove(node* openFiles, const int fstClus);
+int removeNode(node* openFiles, const int fstClus);
 void clear(node* openFiles);
 
 
@@ -664,7 +664,10 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     fseek(fp, start, SEEK_SET);
     return -1;
 }
+int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
+{
 
+}
 /***************LIST FUNCTIONS***************/
 
 node * initList()
@@ -703,7 +706,7 @@ int add(node* listHead, const int clusNum, const short fMode)
     return 1; //successful add
 }
 
-int remove(node* listHead, const int clusNum)
+int removeNode(node* listHead, const int clusNum)
 {
     node* current = listHead->next;
     node* prev = listHead;
@@ -717,13 +720,13 @@ int remove(node* listHead, const int clusNum)
             return 1;
         }
         
-        prev = temp;
+        prev = current;
     }
 
     return 0;
 }
 
-void remove(node* listHead)
+void clear(node* listHead)
 {
     node* temp = NULL;
 
