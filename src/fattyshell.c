@@ -41,6 +41,8 @@ int main(int argc, char** argv)
         printf("Error opening %s\n", argv[1]);
         return -1;
     }
+    //create linked list of open files
+    list* openFiles = initList();
     // beginning of shell
     printf("Fatty Shell\nEnter \"help\" or \"h\" to view available commands\n");
     char *tok = NULL;
@@ -103,6 +105,7 @@ int main(int argc, char** argv)
 
     } while (run);
 
+    clear(openFiles);
     fclose(fp);
     return 0;
 }

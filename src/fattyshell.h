@@ -113,6 +113,13 @@ typedef struct dir_t
 
 } __attribute__ ((packed)) dir;
 
+typedef struct file_node
+{
+    int fstClus;
+    short mode;
+    node* next;
+} node;
+
 
 // init functions
 void initBoot(FILE*, boot*);
@@ -125,10 +132,17 @@ void loadDir(FILE*, dir*);
 void f_exit();
 void f_info(boot*);
 long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
+int f_create(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
 int f_open();
 int f_read();
 int f_close();
 int f_cd(FILE*, fat*, dir*, cmd*);
+
+// list functions
+list* initList();
+int add(list* openFiles, const int fstClus, const short mode);
+int remove(list* openFiles, const int fstClus);
+void clear(list* openFiles);
 
 
 // helper functions
@@ -519,6 +533,8 @@ int isEndOfCluster(FILE *img, const int nextCluster)
     return 1;
 }
 
+/***************COMMAND FUNCTIONS***************/
+
 void f_exit() 
 {
     run = 0;
@@ -651,6 +667,78 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     return -1;
 }
 
+/***************LIST FUNCTIONS***************/
+
+list * initList()
+{
+    list* head = (list*)malloc(sizeof(list));
+    list* tail = (list*)malloc(sizeof(list));
+    tail->fstClus = 0;
+    tail->mode = 0;
+    tail->next = NULL;
+
+    head->fstClus = 0;
+    head->mode = 0;
+    head->next = tail;
+
+    return head;
+}
+
+int add(node* listHead, const int clusNum, const short fMode)
+{
+    
+    node* temp = listHead->next;
+
+    //find end of list
+    while(temp->next->next != NULL)
+        if(temp->fstClus == clusNum) //file already open
+            return 0;
+        temp = temp->next;
+
+    node* newFile = (node*)malloc(sizeof(node));
+    newFile->fstClus = clusNum;
+    newFile->mode = fMode;
+
+    newFile->next = temp->next;
+    temp->next = newFile;
+
+    return 1; //successful add
+}
+
+int remove(node* listHead, const int clusNum)
+{
+    node* current = listHead->next;
+    node* prev = listHead;
+
+    //find end of list
+    while(current->next != NULL){
+        //found open file in list
+        if(current->fstClus == clusNum){
+            prev->next = current->next;
+            free(current);
+            return 1;
+        }
+        
+        prev = temp;
+    }
+
+    return 0;
+}
+
+void remove(node* listHead)
+{
+    node* temp = NULL;
+
+    while(listHead->next != NULL){
+        temp = listHead->next;
+        free(listHead);
+        listHead = temp;
+    }
+
+    free(listHead);
+}
+
+/***************HELPER FUNCTIONS***************/
 
 int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
 {
