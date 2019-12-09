@@ -659,7 +659,6 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
             {
                 f_fat->curClus = next;
                 fseek(fp, start, SEEK_SET);
-                f_dir = (dir*)malloc(sizeof(dir));
                 memcpy((void*)f_dir->DIR_Name, (void*)tmp->DIR_Name, sizeof(uint8_t) * 11);
                 memcpy((void*)f_dir->DIR_Attr, (void*)tmp->DIR_Attr, sizeof(uint8_t) * 1);
                 memcpy((void*)f_dir->DIR_NTRes, (void*)tmp->DIR_NTRes, sizeof(uint8_t) * 1);
@@ -696,38 +695,46 @@ int f_ls(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     int start = ftell(fp);
     int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
     dir* tmp = NULL;
-
-    while ((tmp = initDir(fp, next)) != NULL && )
+    if (strcmp(instr->tokens[1], ".") == 0)
     {   
-        if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
+        if (f_fat->curClus != f_fat->RootClus)
+            printf(".\n..\n");
+
+        while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
         {   
-            if (tmp->DIR_Attr[0] == ATTR_DIRECTORY)
-            {
-                f_fat->curClus = next;
-                fseek(fp, start, SEEK_SET);
-                f_dir = (dir*)malloc(sizeof(dir));
-                memcpy((void*)f_dir->DIR_Name, (void*)tmp->DIR_Name, sizeof(uint8_t) * 11);
-                memcpy((void*)f_dir->DIR_Attr, (void*)tmp->DIR_Attr, sizeof(uint8_t) * 1);
-                memcpy((void*)f_dir->DIR_NTRes, (void*)tmp->DIR_NTRes, sizeof(uint8_t) * 1);
-                memcpy((void*)f_dir->DIR_FstClusHI, (void*)tmp->DIR_FstClusHI, sizeof(uint8_t) * 2);
-                memcpy((void*)f_dir->DIR_FstClusLO, (void*)tmp->DIR_FstClusLO, sizeof(uint8_t) * 2);
-                memcpy((void*)f_dir->DIR_FileSize, (void*)tmp->DIR_FileSize, sizeof(uint8_t) * 4);
-                
-                free(tmp);
-                tmp = NULL;
-                return 0;
+            if (tmp->DIR_Attr[0] != ATTR_LONG_NAME)
+            {   
+                printf("%s\n", (char*)tmp->DIR_Name);
             }
             else
             {
-                free(tmp);
-                tmp = NULL; 
-                return -1;
-            }
+                next+=32;
+            }   
         }
+    }
+    else if (strcmp(instr->tokens[1], "..") == 0)
+    {
+        if (f_fat->curClus == f_fat->RootClus)
+            return -1;
         else
         {
-            next+=32;
-        }   
+
+        }
+    }
+    else
+    {
+        while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
+        {   
+            if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(instr->tokens[1], (char*)tmp->DIR_Name, strlen(instr->tokens[1])))
+            {   
+                
+                printf("%s\n", (char*)tmp->DIR_Name);
+            }
+            else
+            {
+                next+=32;
+            }   
+        }
     }
 
     fseek(fp, start, SEEK_SET);
