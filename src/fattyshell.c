@@ -35,14 +35,14 @@ int main(int argc, char** argv)
     {  
         initBoot(fp, &f_boot);
         initFAT(&f_boot, &f_fat);
-        printf("Clus N: %d\n", f_fat.curClus);
-        int i = calcClus(&f_fat, f_fat.curClus);
-        printf("Index: %d (0x%08x)\n", i, i);
-        printf("Addr: %d (0x%08x)\n", calcFATSecAddr(&f_fat, i), calcFATSecAddr(&f_fat, i));
+        //printf("Clus N: %d\n", f_fat.curClus);
+        //int i = calcClus(&f_fat, f_fat.curClus);
+        //printf("Index: %d (0x%08x)\n", i, i);
+        //printf("Addr: %d (0x%08x)\n", calcFATSecAddr(&f_fat, i), calcFATSecAddr(&f_fat, i));
 
         f_dir = initDir(fp, calcFATSecAddr(&f_fat, f_fat.curClus));
-        if (f_dir != NULL)
-            printf("%d (0x%08x)\n", catClusHILO(f_dir), catClusHILO(f_dir));
+        //if (f_dir != NULL)
+        //    printf("%d (0x%08x)\n", catClusHILO(f_dir), catClusHILO(f_dir));
         
     }
     else

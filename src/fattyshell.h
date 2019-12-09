@@ -895,7 +895,6 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
     dir *tmp = NULL;
     while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
     {   
-        printf("%d\n", instr->size);
         if (instr->size < 4)
             return -3;
         if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp((char *)tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
@@ -1008,14 +1007,14 @@ node * initList()
 
 int add(node* listHead, const int clusNum, const short fMode)
 {
-    
     node* temp = listHead->next;
 
     //find end of list
-    while(temp->next->next != NULL)
+    while(temp->next->next != NULL) {
         if(temp->fstClus == clusNum) //file already open
             return 0;
         temp = temp->next;
+    }
 
     node* newFile = (node*)malloc(sizeof(node));
     newFile->fstClus = clusNum;
@@ -1094,6 +1093,7 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
             f_info(f_boot);
             break;
         case CREATE:
+            break;
         case CLOSE: 
             n = f_close(fp, f_fat, f_dir, instr, openFiles);
             if (n == -2)
@@ -1104,8 +1104,9 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
                 printf("Error: %s is not open.\n", instr->tokens[1]);
             else
                 printf("%s is closed.\n", instr->tokens[1]);                
-
+            break;
         case RM:
+            break;
         case OPEN:
             n = f_open(fp, f_fat, f_dir, instr, openFiles);
             if (n == -2)
@@ -1122,7 +1123,9 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
                 printf("%s: is open.\n", instr->tokens[1]);
             break;
         case WRITE: 
+            break;
         case READ:
+            break;
         case SIZE:
             n = f_size(fp, f_fat, f_dir, instr);
             if (n == -1)
@@ -1150,8 +1153,10 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
             else
                 printf("CWD is now: %s\n", instr->tokens[1]);
             break;
-        case MKDIR: 
+        case MKDIR:
+            break;
         case RMDIR:
+            break;
         case ERROR:
             printf("Invalid menu option. Enter \"help\" or \"h\" to view available commands\n");
             break;
