@@ -139,6 +139,7 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles);
 int f_read();
 int f_close();
 int f_cd(FILE*, fat*, dir*, cmd*);
+int f_ls(FILE*, fat*, dir*, cmd*);
 
 // list functions
 node* initList();
@@ -686,6 +687,55 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     fseek(fp, start, SEEK_SET);
     return -1;
 }
+
+int f_ls(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
+{
+    if (!fp)
+        return -2;
+
+    int start = ftell(fp);
+    int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
+    dir* tmp = NULL;
+
+    while ((tmp = initDir(fp, next)) != NULL && )
+    {   
+        if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
+        {   
+            if (tmp->DIR_Attr[0] == ATTR_DIRECTORY)
+            {
+                f_fat->curClus = next;
+                fseek(fp, start, SEEK_SET);
+                f_dir = (dir*)malloc(sizeof(dir));
+                memcpy((void*)f_dir->DIR_Name, (void*)tmp->DIR_Name, sizeof(uint8_t) * 11);
+                memcpy((void*)f_dir->DIR_Attr, (void*)tmp->DIR_Attr, sizeof(uint8_t) * 1);
+                memcpy((void*)f_dir->DIR_NTRes, (void*)tmp->DIR_NTRes, sizeof(uint8_t) * 1);
+                memcpy((void*)f_dir->DIR_FstClusHI, (void*)tmp->DIR_FstClusHI, sizeof(uint8_t) * 2);
+                memcpy((void*)f_dir->DIR_FstClusLO, (void*)tmp->DIR_FstClusLO, sizeof(uint8_t) * 2);
+                memcpy((void*)f_dir->DIR_FileSize, (void*)tmp->DIR_FileSize, sizeof(uint8_t) * 4);
+                
+                free(tmp);
+                tmp = NULL;
+                return 0;
+            }
+            else
+            {
+                free(tmp);
+                tmp = NULL; 
+                return -1;
+            }
+        }
+        else
+        {
+            next+=32;
+        }   
+    }
+
+    fseek(fp, start, SEEK_SET);
+    return -1;
+}
+
+
+
 int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
 {
     if (!fp)
@@ -716,7 +766,7 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
                     }
                 }
                 //not a directory and not read only
-                else if(tmp->DIR_Attr[0] & 0x10 == 0x00){
+                else if(tmp->DIR_Attr[0] & 0x10 != 0x00){
                     fstClus = catClusHILO(tmp);
                     //read
                     if(strcmp(instr->tokens[2], "r") == 0) {
@@ -735,10 +785,13 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
                     }
                 }
                 
-            }
+            }            
+        }
+        else
+        {
+                next += 32;
         }
         free(tmp);
-
     }
 
     if (tmp != NULL)
@@ -867,6 +920,8 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
                 printf("Size of %s is: %d\n", instr->tokens[1], n);
             break;
         case LS:
+            n = f_ls(fp, f_fat, f_dir, instr);
+            
         case CD:
             n = f_cd(fp, f_fat, f_dir, instr);
             if (n == -1)
