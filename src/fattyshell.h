@@ -830,41 +830,38 @@ int f_ls(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
         while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
         {   
             if (tmp->DIR_Attr[0] != ATTR_LONG_NAME)
-            {   
                 printf("%s\n", (char*)tmp->DIR_Name);
-            }
-            else
-            {
-                next+=32;
-                free(tmp);
 
-            }   
+            next+=32;
+            free(tmp); 
         }
+
+        return 0;
     }
     else if (strcmp(instr->tokens[1], "..") == 0)
     {
         if (f_fat->curClus == f_fat->RootClus)
-            return -1;
+            return -3;
         else
         {
-
+            return 0;
         }
+        
     }
     else
     {
         while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
         {   
             if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(instr->tokens[1], (char*)tmp->DIR_Name, strlen(instr->tokens[1])))
-            {   
-
-                printf("%s\n", (char*)tmp->DIR_Name);
+            {    
+                
+                //printf("%s\n", (char*)tmp->DIR_Name);
             }
-            else
-            {
-                next+=32;
-                free(tmp);
-            }
+            next+=32;
+            free(tmp);
         }
+
+        return 0;
     }
 
     if (tmp != NULL)
@@ -939,7 +936,7 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
         }
         else
         {
-                next += 32;
+            next += 32;
         }
         free(tmp);
     }
@@ -978,7 +975,7 @@ int f_close(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
         }
         else
         {
-                next += 32;
+            next += 32;
         }
         free(tmp);
     }
@@ -1134,7 +1131,13 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
             break;
         case LS:
             n = f_ls(fp, f_fat, f_dir, instr);
-            
+            if (n == -1)
+                printf("%s: Doesn't exist\n", instr->tokens[1]);
+            else if (n == -2)
+                printf("Problem with file pointer\n");
+            else if (n == -3)
+                printf("..: Root doesn't have parent.\n");
+            break;
         case CD:
             n = f_cd(fp, f_fat, f_dir, instr);
             if (n == -1)
