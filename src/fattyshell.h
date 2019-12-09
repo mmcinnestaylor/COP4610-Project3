@@ -133,7 +133,7 @@ void f_exit();
 void f_info(boot*);
 long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
 int f_create(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
-int f_open();
+int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
 int f_read();
 int f_close();
 int f_cd(FILE*, fat*, dir*, cmd*);
@@ -586,10 +586,8 @@ long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
     int start = ftell(fp);
     int next = f_fat->curClus;
     dir *tmp = NULL;
-    do
+    while ((next = getEntVal(fp, calcNext(f_fat, next))) < EOC)
     {
-        next = getEntVal(fp, calcNext(f_fat, next));
-        printf("next: %d\n", next);
         if ((tmp = initDir(fp, f_fat, next)) != NULL)
         {
             printf("dir name: %s\n", tmp->DIR_Name);
@@ -606,7 +604,7 @@ long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
             return size;
         }
 
-    } while (next != EOC);
+    }
 
     fseek(fp, start, SEEK_SET);
     return size;
@@ -764,6 +762,7 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
         case WRITE: 
         case READ:
         case SIZE:
+            n = f_size(fp, f_fat, f_dir, instr);
             if (n == -1)
                 printf("%s: Does not exist.\n", instr->tokens[1]);
             else if (n == -2)
