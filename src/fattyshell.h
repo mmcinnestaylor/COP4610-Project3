@@ -121,6 +121,8 @@ typedef struct file_node
 } node;
 
 
+
+
 // init functions
 void initBoot(FILE*, boot*);
 void initFAT(boot*, fat*);
@@ -807,7 +809,7 @@ void clear(node* listHead)
 
 /***************HELPER FUNCTIONS***************/
 
-int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
+int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, node* openFiles)
 {
     if (instr->size == 0)
         return -1;
@@ -828,7 +830,7 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
         case CLOSE: 
         case RM:
         case OPEN:
-            n = f_size(fp, f_fat, f_dir, instr);
+            n = f_open(fp, f_fat, f_dir, instr, openFiles);
             if (n == -2)
                 printf("Error with file pointer.\n");
             if (n == -1)

@@ -52,6 +52,7 @@ int main(int argc, char** argv)
     }
     //create linked list of open files
     node* openFiles = initList();
+
     // beginning of shell
     printf("Fatty Shell\nEnter \"help\" or \"h\" to view available commands\n");
     char *tok = NULL;
@@ -107,7 +108,7 @@ int main(int argc, char** argv)
         } while ('\n' != getchar());
 
         addNull(&instr);
-        parseCommand(fp, &instr, &f_boot, &f_fat, f_dir);
+        parseCommand(fp, &instr, &f_boot, &f_fat, f_dir, openFiles);
 
         //printTokens(&instr);
         clearCommand(&instr);
