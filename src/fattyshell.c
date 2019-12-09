@@ -42,7 +42,7 @@ int main(int argc, char** argv)
         return -1;
     }
     //create linked list of open files
-    list* openFiles = initList();
+    node* openFiles = initList();
     // beginning of shell
     printf("Fatty Shell\nEnter \"help\" or \"h\" to view available commands\n");
     char *tok = NULL;

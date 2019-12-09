@@ -139,10 +139,10 @@ int f_close();
 int f_cd(FILE*, fat*, dir*, cmd*);
 
 // list functions
-list* initList();
-int add(list* openFiles, const int fstClus, const short mode);
-int remove(list* openFiles, const int fstClus);
-void clear(list* openFiles);
+node* initList();
+int add(node* openFiles, const int fstClus, const short mode);
+int remove(node* openFiles, const int fstClus);
+void clear(node* openFiles);
 
 
 // helper functions
@@ -669,10 +669,10 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
 
 /***************LIST FUNCTIONS***************/
 
-list * initList()
+node * initList()
 {
-    list* head = (list*)malloc(sizeof(list));
-    list* tail = (list*)malloc(sizeof(list));
+    node* head = (node*)malloc(sizeof(node));
+    node* tail = (node*)malloc(sizeof(node));
     tail->fstClus = 0;
     tail->mode = 0;
     tail->next = NULL;
