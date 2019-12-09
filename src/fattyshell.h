@@ -334,12 +334,13 @@ dir* initDir(FILE* fp, int n)
 
     int start = ftell(fp);
 
-    printf("(%d) 0x%08x\n", n, n);
+    //printf("(%d) 0x%08x\n", n, n);
     fseek(fp, n, SEEK_SET);
     dir *f_dir = (dir*)malloc(sizeof(dir));
     loadDir(fp, f_dir);
     fseek(fp, start, SEEK_SET);
     
+    /*
     int i;
     for (i = 0; i < 11; i++)
     {
@@ -354,7 +355,7 @@ dir* initDir(FILE* fp, int n)
     printf("0x%08x\n", arr2val(f_dir->DIR_FileSize, 4));
 
     printf("\n");
-
+    */
     return f_dir;
 }
 
@@ -393,7 +394,7 @@ void loadDir(FILE* fp, dir* f_dir)
 
     fread(f_dir->DIR_FileSize, sizeof(uint8_t), 4, fp);
     cnvtEndian(f_dir->DIR_FileSize, 4);
-    printf("(%d) 0x%08x\n", ftell(fp), ftell(fp));
+    //printf("(%d) 0x%08x\n", ftell(fp), ftell(fp));
 }
 //n: cluster; first sector of cluster n
 int calcClus(fat* f_fat, int n)
@@ -695,7 +696,8 @@ int f_ls(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     int start = ftell(fp);
     int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
     dir* tmp = NULL;
-    if (strcmp(instr->tokens[1], ".") == 0)
+    
+    if (instr->size < 3 || strcmp(instr->tokens[1], ".") == 0)
     {   
         if (f_fat->curClus != f_fat->RootClus)
             printf(".\n..\n");
@@ -709,6 +711,8 @@ int f_ls(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
             else
             {
                 next+=32;
+                free(tmp);
+
             }   
         }
     }
@@ -727,16 +731,20 @@ int f_ls(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
         {   
             if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(instr->tokens[1], (char*)tmp->DIR_Name, strlen(instr->tokens[1])))
             {   
-                
+
                 printf("%s\n", (char*)tmp->DIR_Name);
             }
             else
             {
                 next+=32;
-            }   
+                free(tmp);
+            }
         }
     }
 
+    if (tmp != NULL)
+        free(tmp);
+    
     fseek(fp, start, SEEK_SET);
     return -1;
 }
