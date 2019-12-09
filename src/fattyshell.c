@@ -26,7 +26,7 @@ int main(int argc, char** argv)
     // declare structs for fat regions
     boot f_boot;
     fat f_fat;
-    dir** f_dir[5];
+    dir *f_dir = NULL;
 
     // open filename passed in in read/binary mode, init f_boot info
     FILE *fp = NULL;
@@ -35,6 +35,15 @@ int main(int argc, char** argv)
     {  
         initBoot(fp, &f_boot);
         initFAT(&f_boot, &f_fat);
+        printf("Clus N: %d\n", f_fat.curClus);
+        int i = calcClus(&f_fat, f_fat.curClus);
+        printf("Index: %d (0x%08x)\n", i, i);
+        printf("Addr: %d (0x%08x)\n", calcFATSecAddr(&f_fat, i), calcFATSecAddr(&f_fat, i));
+
+        f_dir = initDir(fp, calcFATSecAddr(&f_fat, f_fat.curClus));
+        if (f_dir != NULL)
+            printf("%d (0x%08x)\n", catClusHILO(f_dir), catClusHILO(f_dir));
+        
     }
     else
     {
@@ -96,13 +105,14 @@ int main(int argc, char** argv)
         } while ('\n' != getchar());
 
         addNull(&instr);
-        parseCommand(fp, &instr, &f_boot, &f_fat, &f_dir);
+        parseCommand(fp, &instr, &f_boot, &f_fat, f_dir);
 
         //printTokens(&instr);
         clearCommand(&instr);
 
     } while (run);
 
+    free(f_dir);
     fclose(fp);
     return 0;
 }

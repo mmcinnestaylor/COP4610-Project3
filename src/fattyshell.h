@@ -21,7 +21,7 @@
 #define ATTR_DIRECTORY  0x10
 #define ATTR_ARCHIVE    0x20
 #define ATTR_LONG_NAME  (ATTR_READ_ONLY | ATTR_HIDDEN | ATTR_SYSTEM | ATTR_VOLUME_ID)
-#define EOC             0x0FFFFF8
+#define EOC             0x0FFFFFF8
 
 static int run = 1;
 
@@ -104,7 +104,7 @@ typedef struct fat_t
 
 typedef struct dir_t
 {
-    char DIR_Name[11];
+    uint8_t DIR_Name[11];
     uint8_t DIR_Attr[1];
     uint8_t DIR_NTRes[1];
     uint8_t DIR_FstClusHI[2];
@@ -117,7 +117,7 @@ typedef struct dir_t
 // init functions
 void initBoot(FILE*, boot*);
 void initFAT(boot*, fat*);
-dir* initDir(FILE*, fat*, int);
+dir* initDir(FILE*, int);
 void loadDir(FILE*, dir*);
 
 
@@ -309,28 +309,57 @@ void initFAT(boot* f_boot, fat* f_fat)
     f_fat->curClus = f_fat->RootClus = arr2val(f_boot->BPB_RootClus, 4);
 }
 
-dir* initDir(FILE* fp, fat* f_fat, int n)
+dir* initDir(FILE* fp, int n)
 {
     if (!fp)
         return NULL;
 
     int start = ftell(fp);
-    int firstSecOfClus = calcClus(f_fat, n);
-    int pos = calcFATSecAddr(f_fat, firstSecOfClus);
-    
-    fseek(fp, pos, SEEK_SET);
+
+    printf("(%d) 0x%08x\n", n, n);
+    fseek(fp, n, SEEK_SET);
     dir *f_dir = (dir*)malloc(sizeof(dir));
     loadDir(fp, f_dir);
     fseek(fp, start, SEEK_SET);
     
+    int i;
+    for (i = 0; i < 11; i++)
+    {
+        printf("%c", (char)f_dir->DIR_Name[i]);
+    }
+    printf("\n");
+    printf("0x%02x\n", f_dir->DIR_Attr[0]);
+    printf("0x%02x\n", f_dir->DIR_NTRes[0]);
+    printf("0x%04x\n", arr2val(f_dir->DIR_FstClusHI, 2));
+    printf("0x%04x\n", arr2val(f_dir->DIR_FstClusLO, 2));
+    printf("0x%04x\n", arr2val(f_dir->DIR_FstClusHI, 2));
+    printf("0x%08x\n", arr2val(f_dir->DIR_FileSize, 4));
+
+    printf("\n");
+
     return f_dir;
 }
 
 void loadDir(FILE* fp, dir* f_dir)
 {
-    fread(f_dir->DIR_Name, sizeof(char), 11, fp);
-    cnvtEndian((uint8_t*)f_dir->DIR_Name, 11);
-    
+    /*
+    int i,j;
+    char c;
+    for (i = 0, j = 0; i < 11; i++, j++)
+    {
+        if ((c = fgetc(fp)) != 0x0)
+            f_dir->DIR_Name[]
+
+       
+    }
+    */
+    fread(f_dir->DIR_Name, sizeof(uint8_t), 11, fp);
+    //cnvtEndian((uint8_t*)f_dir->DIR_Name, 11);
+    //int i;
+    //for (i = 0; i < 11; i++)
+    //{
+    //    printf("%c", f_dir->DIR_Name[i]);
+    //}
     fread(f_dir->DIR_Attr, sizeof(uint8_t), 1, fp);
     fread(f_dir->DIR_NTRes, sizeof(uint8_t), 1, fp);
 
@@ -346,11 +375,12 @@ void loadDir(FILE* fp, dir* f_dir)
 
     fread(f_dir->DIR_FileSize, sizeof(uint8_t), 4, fp);
     cnvtEndian(f_dir->DIR_FileSize, 4);
+    printf("(%d) 0x%08x\n", ftell(fp), ftell(fp));
 }
 //n: cluster; first sector of cluster n
 int calcClus(fat* f_fat, int n)
 {
-    printf("%d + ((%d - 2) * %d) = %d\n", f_fat->DataSec, n, f_fat->SecPerClus, f_fat->DataSec + ((n - 2) * f_fat->SecPerClus));
+    //printf("%d + ((%d - 2) * %d) = %d\n", f_fat->DataSec, n, f_fat->SecPerClus, f_fat->DataSec + ((n - 2) * f_fat->SecPerClus));
     return f_fat->FirstDataSec + ((n - 2) * f_fat->SecPerClus);
 }
 
@@ -393,10 +423,10 @@ int getEntVal(FILE* fp, int n)
     if (fp)
     {  
         fseek(fp, n, SEEK_SET);
+
         fread(data, sizeof(uint8_t), 4, fp);
-        printf("%d (0x%08x)\n", arr2val(data, 4));
         cnvtEndian(data, 4);
-        printf("%d (0x%08x)\n", arr2val(data, 4) & 0xFFFFFFFF);
+        printf("%d (0x%08x)\n", arr2val(data, 4), arr2val(data, 4));
 
         return arr2val(data, 4);
     }
@@ -574,7 +604,7 @@ long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
     {
         next = getEntVal(fp, calcNext(f_fat, next));
         printf("next: %d\n", next);
-        if ((tmp = initDir(fp, f_fat, next)) != NULL)
+        if ((tmp = initDir(fp, next)) != NULL)
         {
             printf("dir name: %s\n", tmp->DIR_Name);
             if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
@@ -603,48 +633,42 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
         return -2;
 
     int start = ftell(fp);
-    int next = f_fat->curClus;
+    int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
     dir* tmp = NULL;
-    while ((next = getEntVal(fp, calcNext(f_fat, next))) < EOC)
-    {
-        if ((tmp = initDir(fp, f_fat, next)) != NULL)
-        {
-            printf("dir name: 0x%02x\n", tmp->DIR_Name[0]);
-            if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
-            {   
-                if (tmp->DIR_Attr == ATTR_DIRECTORY)
-                {
-                    f_fat->curClus = next;
-                    fseek(fp, start, SEEK_SET);
+    int run = 1;
+    int i;
 
-                    memmove(f_dir->DIR_Name, tmp->DIR_Name, 11);
-                    memmove(f_dir->DIR_Attr, tmp->DIR_Attr, 1);
-                    memmove(f_dir->DIR_NTRes, tmp->DIR_NTRes, 1);
-                    memmove(f_dir->DIR_FstClusHI, tmp->DIR_FstClusHI, 2);
-                    memmove(f_dir->DIR_FstClusLO, tmp->DIR_FstClusLO, 2);
-                    memmove(f_dir->DIR_FileSize, tmp->DIR_FileSize, 4);
-                    
-                    free(tmp);
-                    tmp = NULL;
-                    return 0;
-                }
-                else
-                {
-                    free(tmp);
-                    tmp = NULL; 
-                    return -1;  
-                }
+    while ((tmp = initDir(fp, next)) != NULL)
+    {   
+        if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
+        {   
+            if (tmp->DIR_Attr[0] == ATTR_DIRECTORY)
+            {
+                f_fat->curClus = next;
+                fseek(fp, start, SEEK_SET);
+                f_dir = (dir*)malloc(sizeof(dir));
+                memcpy((void*)f_dir->DIR_Name, (void*)tmp->DIR_Name, sizeof(uint8_t) * 11);
+                memcpy((void*)f_dir->DIR_Attr, (void*)tmp->DIR_Attr, sizeof(uint8_t) * 1);
+                memcpy((void*)f_dir->DIR_NTRes, (void*)tmp->DIR_NTRes, sizeof(uint8_t) * 1);
+                memcpy((void*)f_dir->DIR_FstClusHI, (void*)tmp->DIR_FstClusHI, sizeof(uint8_t) * 2);
+                memcpy((void*)f_dir->DIR_FstClusLO, (void*)tmp->DIR_FstClusLO, sizeof(uint8_t) * 2);
+                memcpy((void*)f_dir->DIR_FileSize, (void*)tmp->DIR_FileSize, sizeof(uint8_t) * 4);
+                
+                free(tmp);
+                tmp = NULL;
+                return 0;
             }
             else
             {
                 free(tmp);
-                tmp = NULL;
-            }   
+                tmp = NULL; 
+                return -1;
+            }
         }
         else
         {
-            return -2;
-        }
+            next+=32;
+        }   
     }
 
     fseek(fp, start, SEEK_SET);
@@ -700,13 +724,6 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir)
         case -1:
             printf("tok was null\n");
             break;
-    }
-
-
-    int i;
-    for (i = 0; i < instr->size; i++)
-    {
-
     }
 }
 
