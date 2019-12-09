@@ -692,7 +692,53 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
 }
 int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
 {
+    if (!fp)
+        return -2;
 
+    int result = 0; //0 on fail 1 on success
+    int fstClus = 0;
+    int start = ftell(fp);
+    int next = f_fat->curClus;
+    dir *tmp = NULL;
+    while ((next = getEntVal(fp, calcNext(f_fat, next))) < EOC)
+    {
+        if ((tmp = initDir(fp, f_fat, next)) != NULL)
+        {
+            printf("dir name: %s\n", tmp->DIR_Name);
+            if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
+            {
+                //not a directory and read only
+                if(tmp->DIR_Attr[0] & 0x10 == 0x00 && (tmp->DIR_Attr & 0x01 == 0x01)){
+                    fstClus = arr2val(tmp->DIR_FstClusHI, 2) + arr2val(tmp->DIR_FstClusLO, 2);
+                    //selected more is not r
+                    if(strcmp(instr->tokens[2], "r") != 0)
+                        return -1;
+                    else{
+                        result = add(openFiles, fstClus, 1);
+                    }
+                }
+                //not a directory and not read only
+                else if(tmp->DIR_Attr[0] & 0x10 == 0x00){
+                    fstClus = arr2val(tmp->DIR_FstClusHI, 2) + arr2val(tmp->DIR_FstClusLO, 2);
+                    //read
+                    if(strcmp(instr->tokens[2], "r") == 0)
+                        result = add(openFiles, fstClus, 1);
+                    //write
+                    else if(strcmp(instr->tokens[2], "w") == 0)
+                        result = add(openFiles, arr2val(tmp->DIR_FstClusHI, 2), 2);
+                    //read and write
+                    else if(strcmp(instr->tokens[2], "wr") == 0 || strcmp(instr->tokens[2], "rw") == 0)
+                        result = add(openFiles, arr2val(tmp->DIR_FstClusHI, 2), 3);
+                }
+                
+            }
+            free(tmp);
+        }
+
+    }
+
+    fseek(fp, start, SEEK_SET);
+    return result;
 }
 /***************LIST FUNCTIONS***************/
 
