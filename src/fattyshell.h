@@ -691,16 +691,17 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
     if (!fp)
         return -2;
 
-    int result = 0; //0 on fail 1 on success
+    int result = -4; //-4 on fail 1 on success
     int fstClus = 0;
     int start = ftell(fp);
     int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
     dir *tmp = NULL;
-    while ((tmp = initDir(fp, next)) != NULL)
+    while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
     {
+        if (instr->size < 4)
+            return -3;
         if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
         {
-            printf("dir name: %s\n", tmp->DIR_Name);
             if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
             {
                 //not a directory and read only
@@ -711,27 +712,37 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
                         return -1;
                     else{
                         result = add(openFiles, fstClus, 1);
+                        break;
                     }
                 }
                 //not a directory and not read only
                 else if(tmp->DIR_Attr[0] & 0x10 == 0x00){
                     fstClus = catClusHILO(tmp);
                     //read
-                    if(strcmp(instr->tokens[2], "r") == 0)
+                    if(strcmp(instr->tokens[2], "r") == 0) {
                         result = add(openFiles, fstClus, 1);
+                        break;
+                    }
                     //write
-                    else if(strcmp(instr->tokens[2], "w") == 0)
+                    else if(strcmp(instr->tokens[2], "w") == 0) {
                         result = add(openFiles, fstClus, 2);
+                        break;
+                    }
                     //read and write
-                    else if(strcmp(instr->tokens[2], "wr") == 0 || strcmp(instr->tokens[2], "rw") == 0)
+                    else if(strcmp(instr->tokens[2], "wr") == 0 || strcmp(instr->tokens[2], "rw") == 0) {
                         result = add(openFiles, fstClus, 3);
+                        break;
+                    }
                 }
                 
             }
-            free(tmp);
         }
+        free(tmp);
 
     }
+
+    if (tmp != NULL)
+        free(tmp);
 
     fseek(fp, start, SEEK_SET);
     return result;
@@ -836,10 +847,14 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
             if (n == -1)
                 printf("Error: %s is read only and mode is %s.\n", instr->tokens[1], instr->tokens[2]);
             else if (n == 0)
+                printf("%s: Already open.\n", instr->tokens[1]);
+            else if (n == -3)
+                printf("Invalid usage.\n");
+            else if (n == -4)
                 printf("%s: Does not exist.\n", instr->tokens[1]);
             else
                 printf("%s: is open.\n", instr->tokens[1]);
-
+            break;
         case WRITE: 
         case READ:
         case SIZE:
