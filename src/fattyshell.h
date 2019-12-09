@@ -137,7 +137,7 @@ long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
 int f_create(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr);
 int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles);
 int f_read();
-int f_close();
+int f_close(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles);
 int f_cd(FILE*, fat*, dir*, cmd*);
 int f_ls(FILE*, fat*, dir*, cmd*);
 
@@ -176,7 +176,15 @@ void clearCommand(cmd*);
 void printTokens(cmd*);
 
 
-
+/*
+ * initialize boot
+ *  >   FILE*
+ *  >   boot*
+ *  ::  void
+ *
+ *  * initializes boot
+ * 
+ */
 void initBoot(FILE* fp, boot* f_boot)
 {
     if (fp)
@@ -299,6 +307,17 @@ void initBoot(FILE* fp, boot* f_boot)
     }
 }
 
+
+
+/*
+ * initialize FAT
+ *  >   boot*
+ *  >   fat*
+ *  ::  void
+ *
+ *  * initializes FAT
+ * 
+ */
 void initFAT(boot* f_boot, fat* f_fat)
 {   
     uint32_t BPB_RootEntCnt = arr2val(f_boot->BPB_RootEntCnt, 2);
@@ -327,6 +346,16 @@ void initFAT(boot* f_boot, fat* f_fat)
     f_fat->curClus = f_fat->RootClus = arr2val(f_boot->BPB_RootClus, 4);
 }
 
+
+/*
+ * initialize dir
+ *  >   FILE*
+ *  >   int
+ *  ::  dir*
+ *
+ *  * initializes dir
+ * 
+ */
 dir* initDir(FILE* fp, int n)
 {
     if (!fp)
@@ -359,6 +388,16 @@ dir* initDir(FILE* fp, int n)
     return f_dir;
 }
 
+
+/*
+ * load dir
+ *  >   FILE*
+ *  >   dir*
+ *  ::  void
+ *
+ *  * initializes FAT
+ * 
+ */
 void loadDir(FILE* fp, dir* f_dir)
 {
     /*
@@ -435,6 +474,15 @@ int calcNext(fat* f_fat, int n)
     return calcFATSecAddr(f_fat, thisFATEntSec) + thisFATEntOffset;
 }
 
+/*
+ * get ent value
+ *  >   FILE*
+ *  >   int
+ *  ::  int
+ *
+ *  * gets ent value
+ * 
+ */
 int getEntVal(FILE* fp, int n)
 {
     uint8_t data[4];
@@ -456,11 +504,19 @@ int getEntVal(FILE* fp, int n)
     }   
 }
 
+
 int catClusHILO(dir* f_dir)
 {
     return ((f_dir->DIR_FstClusHI[0] << 24) | (f_dir->DIR_FstClusHI[1] << 16) | (f_dir->DIR_FstClusLO[0] << 8) | f_dir->DIR_FstClusLO[1]);
 }
 
+/*
+ * print menu
+ *  ::  void
+ *
+ *  * prints menu
+ * 
+ */
 void printMenu()
 {   
     printf("\nValid Options:\n");
@@ -479,6 +535,14 @@ void printMenu()
     printf("exit\n\n");
 }
 
+/*
+ * get choice
+ *  >   const char*
+ *  ::  int
+ *
+ *  * gets choice
+ * 
+ */
 int getChoice(const char* tok)
 {
     if (tok == NULL)                        return -1;
@@ -524,6 +588,16 @@ void ascii2dec(uint8_t * arr)
     }
 }
 
+
+/*
+ * convert endian
+ *  >   uint8_t*
+ *  >   int
+ *  ::  void
+ *
+ *  * converts endian
+ * 
+ */
 void cnvtEndian(uint8_t *x, int size)
 {
     uint8_t tmp[size];
@@ -534,6 +608,16 @@ void cnvtEndian(uint8_t *x, int size)
         x[i] = tmp[i];
 }
 
+
+/*
+ * array to value
+ *  >   uint8_t*
+ *  >   int
+ *  ::  void
+ *
+ *  * array to value
+ * 
+ */
 uint32_t arr2val(uint8_t *x, int size)
 {
     uint32_t tmp = 0;
@@ -549,6 +633,15 @@ uint32_t arr2val(uint8_t *x, int size)
     return tmp;
 }
 
+/*
+ * is end of cluster ?
+ *  >   FILE*
+ *  >   const int
+ *  ::  int
+ *
+ *  * returns whether is end of cluster
+ * 
+ */
 int isEndOfCluster(FILE *img, const int nextCluster)
 {
     int i;
@@ -575,6 +668,15 @@ void f_exit()
     run = 0;
 }
 
+
+/*
+ * info
+ *  >   boot*
+ *  ::  void
+ *
+ *  * prints info
+ * 
+ */
 void f_info(boot* f_boot)
 {
     int i;
@@ -612,6 +714,18 @@ void f_info(boot* f_boot)
     printf("%c\n", '\0');
 }
 
+
+/*
+ * size
+ *  >   boot*
+ *  >   fat*
+ *  >   dir*
+ *  >   cmd*
+ *  ::  long int
+ *
+ *  * required size function
+ * 
+ */
 long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
 {
     if (!fp)
@@ -642,7 +756,17 @@ long int f_size(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr)
     return size;
 }
 
-
+/*
+ * cd
+ *  >   FILE*
+ *  >   fat*
+ *  >   dir*
+ *  >   cmd*
+ *  ::  int
+ *
+ *  * required cd function
+ * 
+ */
 int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
 {
     if (!fp)
@@ -687,6 +811,7 @@ int f_cd(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
     fseek(fp, start, SEEK_SET);
     return -1;
 }
+
 
 int f_ls(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
 {
@@ -750,7 +875,17 @@ int f_ls(FILE* fp, fat* f_fat, dir* f_dir, cmd* instr)
 }
 
 
-
+/*
+ * open
+ *  >   FILE*
+ *  >   fat*
+ *  >   dir*
+ *  >   cmd*
+ *  ::  int
+ *
+ *  * required open function
+ * 
+ */
 int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
 {
     if (!fp)
@@ -800,6 +935,45 @@ int f_open(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
                     }
                 }
                 
+            }            
+        }
+        else
+        {
+                next += 32;
+        }
+        free(tmp);
+    }
+
+    if (tmp != NULL)
+        free(tmp);
+
+    fseek(fp, start, SEEK_SET);
+    return result;
+}
+
+int f_close(FILE *fp, fat *f_fat, dir *f_dir, cmd *instr, node* openFiles)
+{
+    if (!fp)
+        return -2;
+
+    int result = -1; //-1 on file dne 0 not open 1 on success
+    int fstClus = 0;
+    int start = ftell(fp);
+    int next = calcFATSecAddr(f_fat, calcClus(f_fat, f_fat->curClus));
+    dir *tmp = NULL;
+    while ((tmp = initDir(fp, next)) != NULL && isFile(tmp->DIR_Attr[0]))
+    {
+        //if (instr->size < 4)
+        //    return -3;
+        if (tmp->DIR_Attr[0] != ATTR_LONG_NAME && strncmp(tmp->DIR_Name, instr->tokens[1], strlen(instr->tokens[1])) == 0)
+        {
+            if (strcmp(tmp->DIR_Name, instr->tokens[1]) == 0)
+            {
+                //not a directory
+                if(tmp->DIR_Attr[0] & 0x10 != 0x00){
+                    fstClus = catClusHILO(tmp);
+                    result = removeNode(openFiles, fstClus);
+                }                
             }            
         }
         else
@@ -866,8 +1040,9 @@ int removeNode(node* listHead, const int clusNum)
             free(current);
             return 1;
         }
-        
+
         prev = current;
+        current = current->next;
     }
 
     return 0;
@@ -888,6 +1063,19 @@ void clear(node* listHead)
 
 /***************HELPER FUNCTIONS***************/
 
+
+/*
+ * parse command
+ *  >   FILE*
+ *  >   fat*
+ *  >   dir*
+ *  >   cmd*
+ *  >   node*
+ *  ::  long int
+ *
+ *  * parses command
+ * 
+ */
 int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, node* openFiles)
 {
     if (instr->size == 0)
@@ -907,6 +1095,16 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
             break;
         case CREATE:
         case CLOSE: 
+            n = f_close(fp, f_fat, f_dir, instr, openFiles);
+            if (n == -2)
+                printf("Error with file pointer.\n");
+            else if (n == -1)
+                printf("Error: %s does not exist or is a directory.\n", instr->tokens[1]);
+            else if (n == 0)
+                printf("Error: %s is not open.\n", instr->tokens[1]);
+            else
+                printf("%s is closed.\n", instr->tokens[1]);                
+
         case RM:
         case OPEN:
             n = f_open(fp, f_fat, f_dir, instr, openFiles);
@@ -957,6 +1155,16 @@ int parseCommand(FILE* fp, cmd* instr, boot* f_boot, fat* f_fat, dir* f_dir, nod
     }
 }
 
+
+/*
+ * add token
+ *  >   cmd*
+ *  >   char*
+ *  ::  long int
+ *
+ *  * adds a tok
+ * 
+ */
 void addToken(cmd* instr, char* tok)
 {
 	//extend token array to accomodate an additional token
