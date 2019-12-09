@@ -168,7 +168,7 @@ int isLong(dir*);
 int isEndOfCluster(FILE*, const int);
 
 // shell command functions
-int parseCommand(FILE*, cmd*, boot*, fat*, dir*);
+int parseCommand(FILE*, cmd*, boot*, fat*, dir*, node*);
 void addToken(cmd*, char*);
 void addNull(cmd*);
 void clearCommand(cmd*);
